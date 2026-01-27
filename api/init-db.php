@@ -112,6 +112,39 @@ try {
     $db->exec('CREATE INDEX IF NOT EXISTS idx_inventory_user_id ON inventory(user_id)');
     $db->exec('CREATE INDEX IF NOT EXISTS idx_inventory_item_id ON inventory(item_id)');
 
+    // Create equipment table (player equipment slots)
+    $db->exec('
+        CREATE TABLE IF NOT EXISTS equipment (
+            equipment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL UNIQUE,
+            head INTEGER,
+            body INTEGER,
+            hands INTEGER,
+            shoulders INTEGER,
+            legs INTEGER,
+            weapon_right INTEGER,
+            weapon_left INTEGER,
+            ring_right INTEGER,
+            ring_left INTEGER,
+            amulet INTEGER,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES players(user_id),
+            FOREIGN KEY (head) REFERENCES inventory(inventory_id),
+            FOREIGN KEY (body) REFERENCES inventory(inventory_id),
+            FOREIGN KEY (hands) REFERENCES inventory(inventory_id),
+            FOREIGN KEY (shoulders) REFERENCES inventory(inventory_id),
+            FOREIGN KEY (legs) REFERENCES inventory(inventory_id),
+            FOREIGN KEY (weapon_right) REFERENCES inventory(inventory_id),
+            FOREIGN KEY (weapon_left) REFERENCES inventory(inventory_id),
+            FOREIGN KEY (ring_right) REFERENCES inventory(inventory_id),
+            FOREIGN KEY (ring_left) REFERENCES inventory(inventory_id),
+            FOREIGN KEY (amulet) REFERENCES inventory(inventory_id)
+        )
+    ');
+
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_equipment_user_id ON equipment(user_id)');
+
     // Seed territories with forts, castles, and walls
     $territories = [
         // Syrtis
@@ -226,6 +259,7 @@ try {
     echo "  - superbosses (boss_id, name, health, max_health, x, y, last_attacked, respawn_time)\n";
     echo "  - items (item_id, name, type, description, stats, rarity, stackable)\n";
     echo "  - inventory (inventory_id, user_id, item_id, quantity, acquired_at)\n";
+    echo "  - equipment (equipment_id, user_id, head, body, hands, shoulders, legs, weapon_right, weapon_left, ring_right, ring_left, amulet, created_at, updated_at)\n";
 } catch (PDOException $e) {
     echo "Error initializing database: " . $e->getMessage() . "\n";
     exit(1);
