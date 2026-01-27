@@ -276,13 +276,13 @@
     /* Player Info Panel */
     #player-info{
       position: absolute;
-      left: 12px;
-      top: 80px;
+      left: 8px;
+      top: 8px;
       background: #1a1a1a;
       color: #e0e0e0;
       padding: 0;
       font-size: 11px;
-      z-index: 1000;
+      z-index: 1200;
       font-family: 'MS Sans Serif', Arial, sans-serif;
       min-width: 220px;
       display: none;
@@ -384,6 +384,17 @@
       background: rgba(0,0,0,0.3);
       border: 2px solid #1a2538;
       border-radius: 3px;
+    }
+
+    /* Inventory window sizing */
+    #inventory-window{
+      max-height: 600px;
+      overflow: hidden;
+    }
+    #inventory-list{
+      overflow-y: auto;
+      flex: 1 1 auto;
+      min-height: 0;
     }
 
     /* Equipment Slot Styles */
@@ -680,33 +691,35 @@
   </div>
 
   <!-- Inventory Window -->
-  <div id="inventory-window" style="position: absolute; left: 250px; top: 80px; width: 304px; max-height: 765px; background: #1a1a1a; border: 1px solid #333; box-shadow: 0 4px 16px rgba(0,0,0,0.8); z-index: 1000; display: none; flex-direction: column; font-family: 'MS Sans Serif', Arial, sans-serif;">
+  <div id="inventory-window" style="position: absolute; right: 12px; bottom: 12px; width: 304px; background: #1a1a1a; border: 1px solid #333; box-shadow: 0 4px 16px rgba(0,0,0,0.8); z-index: 1000; display: none; flex-direction: column; font-family: 'MS Sans Serif', Arial, sans-serif;">
     <div id="inventory-header" style="padding: 3px 4px; background: linear-gradient(180deg, #000080 0%, #1084d0 100%); cursor: move; display: flex; justify-content: space-between; align-items: center; user-select: none;">
       <h2 style="margin: 0; flex: 1; font-size: 11px; font-weight: 700; color: #ffffff; font-family: 'MS Sans Serif', Arial, sans-serif;">Inventory</h2>
       <button id="inventory-close-btn" style="background: #2a2a2a; border: 1px solid #444; color: #e0e0e0; font-size: 11px; cursor: pointer; padding: 0; width: 16px; height: 14px; line-height: 1; font-family: 'MS Sans Serif', Arial, sans-serif; font-weight: 700;">X</button>
     </div>
-    <div id="inventory-list" style="overflow-y: auto; max-height: 695px; padding: 8px; background: #1a1a1a;">
+
+    <div id="equipment-area" style="display:none; padding: 8px;">
+      <div class="equipment-area">
+        <div class="equipment-row" id="equipment-row-top">
+          <div class="equipment-slot empty" data-slot="head" title="Head"><div class="slot-icon">👑</div></div>
+          <div class="equipment-slot empty" data-slot="body" title="Body"><div class="slot-icon">🛡️</div></div>
+          <div class="equipment-slot empty" data-slot="hands" title="Hands"><div class="slot-icon">🧤</div></div>
+          <div class="equipment-slot empty" data-slot="shoulders" title="Shoulders"><div class="slot-icon">🧥</div></div>
+          <div class="equipment-slot empty" data-slot="legs" title="Legs"><div class="slot-icon">👖</div></div>
+        </div>
+        <div class="equipment-row" id="equipment-row-bottom">
+          <div class="equipment-slot empty" data-slot="weapon_right" title="Weapon R"><div class="slot-icon">⚔️</div></div>
+          <div class="equipment-slot empty" data-slot="weapon_left" title="Weapon L"><div class="slot-icon">🪓</div></div>
+          <div class="equipment-slot empty" data-slot="ring_right" title="Ring R"><div class="slot-icon">💍</div></div>
+          <div class="equipment-slot empty" data-slot="ring_left" title="Ring L"><div class="slot-icon">💍</div></div>
+          <div class="equipment-slot empty" data-slot="amulet" title="Amulet"><div class="slot-icon">📿</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="inventory-list" style="padding: 8px; background: #1a1a1a;">
       <div id="inventory-loading" style="text-align: center; color: #e0e0e0; padding: 40px;">
         <div class="loading-spinner" style="margin: 0 auto 12px;"></div>
         <div style="font-size: 11px;">Loading inventory...</div>
-      </div>
-      <div id="equipment-area" style="display:none; margin-bottom:8px;">
-        <div class="equipment-area">
-          <div class="equipment-row" id="equipment-row-top">
-            <div class="equipment-slot empty" data-slot="head" title="Head"><div class="slot-icon">👑</div></div>
-            <div class="equipment-slot empty" data-slot="body" title="Body"><div class="slot-icon">🛡️</div></div>
-            <div class="equipment-slot empty" data-slot="hands" title="Hands"><div class="slot-icon">🧤</div></div>
-            <div class="equipment-slot empty" data-slot="shoulders" title="Shoulders"><div class="slot-icon">🧥</div></div>
-            <div class="equipment-slot empty" data-slot="legs" title="Legs"><div class="slot-icon">👖</div></div>
-          </div>
-          <div class="equipment-row" id="equipment-row-bottom">
-            <div class="equipment-slot empty" data-slot="weapon_right" title="Weapon R"><div class="slot-icon">⚔️</div></div>
-            <div class="equipment-slot empty" data-slot="weapon_left" title="Weapon L"><div class="slot-icon">🪓</div></div>
-            <div class="equipment-slot empty" data-slot="ring_right" title="Ring R"><div class="slot-icon">💍</div></div>
-            <div class="equipment-slot empty" data-slot="ring_left" title="Ring L"><div class="slot-icon">💍</div></div>
-            <div class="equipment-slot empty" data-slot="amulet" title="Amulet"><div class="slot-icon">📿</div></div>
-          </div>
-        </div>
       </div>
       <div id="inventory-items" style="display: none;"></div>
       <div id="inventory-empty" style="text-align: center; color: #e0e0e0; padding: 40px; display: none; font-size: 11px;">
