@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Map Tiles Viewer</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html,body,#map{height:100%;margin:0;padding:0}
+    #map{width:100vw;height:100vh}
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // Configuration: 3 rows, 3 columns, tiles named `tiles/{row}-{col}.png`
+    const rows = 3, cols = 3;
+    const tileUrl = (r, c) => `tiles/${r}-${c}.png`;
+
+    // Load first tile to determine tile pixel size at runtime
+    const probe = new Image();
+    probe.src = tileUrl(1,1);
+    probe.onload = () => {
+      const tileW = probe.width;
+      const tileH = probe.height;
+      const totalW = cols * tileW;
+      const totalH = rows * tileH;
+
+      // Use CRS.Simple so coordinates map directly to pixels
+      const map = L.map('map', {
+        crs: L.CRS.Simple,
+        minZoom: -5,
+        maxZoom: 5
+      });
+
+      const fullBounds = [[0,0],[totalH,totalW]]; // [[y1,x1],[y2,x2]]
+      map.fitBounds(fullBounds);
+      map.setMaxBounds(fullBounds);
+
+      // Add each tile as an ImageOverlay positioned by pixel bounds
+      for(let r=1; r<=rows; r++){
+        for(let c=1; c<=cols; c++){
+          const y1 = (r-1)*tileH;
+          const x1 = (c-1)*tileW;
+          const y2 = r*tileH;
+          const x2 = c*tileW;
+          L.imageOverlay(tileUrl(r,c), [[y1,x1],[y2,x2]]).addTo(map);
+        }
+      }
+
+      L.control.scale().addTo(map);
+    };
+
+    probe.onerror = () => {
+      console.error('Failed to load probe tile:', probe.src);
+      document.getElementById('map').innerText = 'Failed to load tiles. Check tiles/ filenames.';
+    };
+  </script>
+</body>
+</html>
