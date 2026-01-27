@@ -103,6 +103,8 @@ if ($path === '/login' && $requestMethod === 'POST') {
     handleGetOnlinePlayers();
 } elseif ($path === '/territories' && $requestMethod === 'GET') {
     handleGetTerritories();
+} elseif ($path === '/superbosses' && $requestMethod === 'GET') {
+    handleGetSuperbosses();
 } else {
     respondError('Endpoint not found', 404);
 }
@@ -201,11 +203,11 @@ function handleRealmSelect() {
 
     // Insert or update player
     if ($existingPlayer) {
-        $stmt = $db->prepare('UPDATE players SET realm = ?, x = ?, y = ?, last_active = ? WHERE user_id = ?');
-        $stmt->execute([$realm, $spawnX, $spawnY, now(), $session['user_id']]);
+        $stmt = $db->prepare('UPDATE players SET realm = ?, x = ?, y = ?, health = ?, max_health = ?, mana = ?, max_mana = ?, last_active = ? WHERE user_id = ?');
+        $stmt->execute([$realm, $spawnX, $spawnY, 400, 600, 150, 200, now(), $session['user_id']]);
     } else {
-        $stmt = $db->prepare('INSERT INTO players (user_id, username, realm, x, y, last_active) VALUES (?, ?, ?, ?, ?, ?)');
-        $stmt->execute([$session['user_id'], $session['username'], $realm, $spawnX, $spawnY, now()]);
+        $stmt = $db->prepare('INSERT INTO players (user_id, username, realm, x, y, health, max_health, mana, max_mana, last_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+        $stmt->execute([$session['user_id'], $session['username'], $realm, $spawnX, $spawnY, 400, 600, 150, 200, now()]);
     }
 
     // Update session realm
@@ -229,7 +231,7 @@ function handleGetPosition() {
     }
 
     $db = getDB();
-    $stmt = $db->prepare('SELECT x, y, realm FROM players WHERE user_id = ?');
+    $stmt = $db->prepare('SELECT x, y, realm, health, max_health, mana, max_mana FROM players WHERE user_id = ?');
     $stmt->execute([$session['user_id']]);
     $player = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -242,7 +244,11 @@ function handleGetPosition() {
             'x' => (int)$player['x'],
             'y' => (int)$player['y']
         ],
-        'realm' => $player['realm']
+        'realm' => $player['realm'],
+        'health' => (int)$player['health'],
+        'maxHealth' => (int)$player['max_health'],
+        'mana' => (int)$player['mana'],
+        'maxMana' => (int)$player['max_mana']
     ]);
 }
 
@@ -285,7 +291,7 @@ function handleGetOnlinePlayers() {
 
     $db = getDB();
     // Get players active within last 5 seconds
-    $stmt = $db->prepare('SELECT user_id, username, realm, x, y, last_active FROM players WHERE last_active > ?');
+    $stmt = $db->prepare('SELECT user_id, username, realm, x, y, health, max_health, last_active FROM players WHERE last_active > ?');
     $stmt->execute([now() - 5]);
     $players = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -297,6 +303,8 @@ function handleGetOnlinePlayers() {
             'realm' => $player['realm'],
             'x' => (int)$player['x'],
             'y' => (int)$player['y'],
+            'health' => (int)$player['health'],
+            'maxHealth' => (int)$player['max_health'],
             'lastActive' => (int)$player['last_active']
         ];
     }
@@ -311,7 +319,7 @@ function handleGetTerritories() {
     $session = validateSession();
 
     $db = getDB();
-    $stmt = $db->prepare('SELECT territory_id, realm, name, type, health, x, y, owner_realm, owner_players, contested, contested_since FROM territories');
+    $stmt = $db->prepare('SELECT territory_id, realm, name, type, health, max_health, x, y, owner_realm, owner_players, contested, contested_since FROM territories');
     $stmt->execute();
     $territories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -323,6 +331,7 @@ function handleGetTerritories() {
             'name' => $territory['name'],
             'type' => $territory['type'],
             'health' => (int)$territory['health'],
+            'maxHealth' => (int)$territory['max_health'],
             'x' => (int)$territory['x'],
             'y' => (int)$territory['y'],
             'ownerRealm' => $territory['owner_realm'],
@@ -333,4 +342,31 @@ function handleGetTerritories() {
     }
 
     respondSuccess(['territories' => $result]);
+}
+/* ================================================================
+    GET SUPERBOSSES
+================================================================ */
+function handleGetSuperbosses() {
+    $session = validateSession();
+
+    $db = getDB();
+    $stmt = $db->prepare('SELECT boss_id, name, health, max_health, x, y, last_attacked, respawn_time FROM superbosses WHERE health > 0');
+    $stmt->execute();
+    $bosses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $result = [];
+    foreach ($bosses as $boss) {
+        $result[] = [
+            'bossId' => (int)$boss['boss_id'],
+            'name' => $boss['name'],
+            'health' => (int)$boss['health'],
+            'maxHealth' => (int)$boss['max_health'],
+            'x' => (int)$boss['x'],
+            'y' => (int)$boss['y'],
+            'lastAttacked' => $boss['last_attacked'] ? (int)$boss['last_attacked'] : null,
+            'respawnTime' => $boss['respawn_time'] ? (int)$boss['respawn_time'] : null
+        ];
+    }
+
+    respondSuccess(['superbosses' => $result]);
 }

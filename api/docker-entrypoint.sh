@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-# Install system dependencies for SQLite and cron
-apk add --no-cache sqlite-dev dcron
+# Install system dependencies for SQLite
+apk add --no-cache sqlite-dev
 
 # Install PDO SQLite extension
 docker-php-ext-install pdo pdo_sqlite
@@ -15,20 +15,22 @@ else
     echo "Database already exists, skipping initialization"
 fi
 
-# Set up cron job for health regeneration
-echo "Setting up cron jobs..."
-echo "* * * * * /usr/local/bin/php /var/www/api/cron/regenerate-health.php >> /var/log/cron.log 2>&1" > /etc/crontabs/root
+# Set up health regeneration loop (every 5 seconds)
+echo "Starting health regeneration background service..."
 
-# Make sure cron script is executable
+# Make sure regeneration script is executable
 chmod +x /var/www/api/cron/regenerate-health.php
 
-# Create log file for cron
-touch /var/log/cron.log
+# Create log file
+touch /var/log/regenerate.log
 
-# Start crond in background
-crond -b -l 2
+# Start regeneration loop in background
+(while true; do
+    /usr/local/bin/php /var/www/api/cron/regenerate-health.php >> /var/log/regenerate.log 2>&1
+    sleep 5
+done) &
 
-echo "Cron daemon started"
+echo "Health regeneration service started (runs every 5 seconds)"
 
 # Start PHP-FPM
 exec php-fpm

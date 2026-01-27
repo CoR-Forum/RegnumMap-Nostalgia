@@ -59,12 +59,13 @@
       line-height: 1;
     }
     #attribution a{ color: #fff; text-decoration: underline }
-    /* Top-left logo */
+    /* Top-center logo */
     #logo{
       position: absolute;
-      left: 12px; /* keep near edge but avoid default controls */
+      left: 50%;
+      transform: translateX(-50%);
       top: 8px;
-      width: 200px; /* increased size */
+      width: 200px;
       height: auto;
       z-index: 1000;
       pointer-events: none;
@@ -391,6 +392,22 @@
       <span class="realm-badge"></span>
       <span id="player-username"></span>
     </div>
+    <div style="margin: 10px 0;">
+      <div style="display: flex; align-items: center; margin-bottom: 5px;">
+        <span style="width: 50px; font-size: 11px; color: rgba(255,255,255,0.8);">Health:</span>
+        <div class="territory-health-bar" style="flex: 1; width: auto; margin-right: 5px;">
+          <div id="player-health-fill" class="territory-health-fill health-high" style="width: 100%;"></div>
+        </div>
+        <span id="player-health-text" style="font-size: 11px; color: rgba(255,255,255,0.9);">1000/1000</span>
+      </div>
+      <div style="display: flex; align-items: center;">
+        <span style="width: 50px; font-size: 11px; color: rgba(255,255,255,0.8);">Mana:</span>
+        <div class="territory-health-bar" style="flex: 1; width: auto; margin-right: 5px; background: rgba(59, 130, 246, 0.3); border-color: rgba(59, 130, 246, 0.5);">
+          <div id="player-mana-fill" class="territory-health-fill" style="width: 100%; background: #3b82f6;"></div>
+        </div>
+        <span id="player-mana-text" style="font-size: 11px; color: rgba(255,255,255,0.9);">500/500</span>
+      </div>
+    </div>
     <div class="player-coords" id="player-coords">Position: 0, 0</div>
     <button class="btn-logout" id="logout-btn">Logout</button>
   </div>
@@ -564,11 +581,17 @@
       username: null,
       realm: null,
       position: { x: 0, y: 0 },
+      health: 1000,
+      maxHealth: 1000,
+      mana: 500,
+      maxMana: 500,
       playerMarker: null,
       otherPlayers: new Map(),
       territories: new Map(),
+      superbosses: new Map(),
       pollInterval: null,
-      territoriesPollInterval: null
+      territoriesPollInterval: null,
+      superbossesPollInterval: null
     };
 
     // API Helper functions
@@ -678,6 +701,9 @@
       if (gameState.territoriesPollInterval) {
         clearInterval(gameState.territoriesPollInterval);
       }
+      if (gameState.superbossesPollInterval) {
+        clearInterval(gameState.superbossesPollInterval);
+      }
       location.reload();
     });
 
@@ -700,6 +726,34 @@
       panel.classList.add('visible');
     }
 
+    function updatePlayerStats() {
+      // Update health bar
+      const healthPercent = (gameState.health / gameState.maxHealth) * 100;
+      const healthFill = document.getElementById('player-health-fill');
+      const healthText = document.getElementById('player-health-text');
+      
+      healthFill.style.width = `${healthPercent}%`;
+      healthText.textContent = `${gameState.health}/${gameState.maxHealth}`;
+      
+      // Update health color
+      healthFill.className = 'territory-health-fill';
+      if (healthPercent < 30) {
+        healthFill.classList.add('health-low');
+      } else if (healthPercent < 70) {
+        healthFill.classList.add('health-medium');
+      } else {
+        healthFill.classList.add('health-high');
+      }
+
+      // Update mana bar
+      const manaPercent = (gameState.mana / gameState.maxMana) * 100;
+      const manaFill = document.getElementById('player-mana-fill');
+      const manaText = document.getElementById('player-mana-text');
+      
+      manaFill.style.width = `${manaPercent}%`;
+      manaText.textContent = `${gameState.mana}/${gameState.maxMana}`;
+    }
+
     function updatePlayerCoords(x, y) {
       document.getElementById('player-coords').textContent = `Position: ${x}, ${y}`;
     }
@@ -711,9 +765,14 @@
         const data = await apiCall('/player/position');
         gameState.position = data.position;
         gameState.realm = data.realm;
+        gameState.health = data.health;
+        gameState.maxHealth = data.maxHealth;
+        gameState.mana = data.mana;
+        gameState.maxMana = data.maxMana;
 
         hideModal();
         showPlayerInfo();
+        updatePlayerStats();
 
         // Create player marker
         createPlayerMarker(gameState.position.x, gameState.position.y);
@@ -726,6 +785,9 @@
 
         // Start polling for territories
         startTerritoriesPolling();
+
+        // Start polling for superbosses
+        startSuperbossesPolling();
 
         updatePlayerCoords(gameState.position.x, gameState.position.y);
       } catch (error) {
@@ -792,6 +854,15 @@
       // Poll every 1 second
       gameState.pollInterval = setInterval(async () => {
         try {
+          // Fetch own player stats
+          const posData = await apiCall('/player/position');
+          gameState.health = posData.health;
+          gameState.maxHealth = posData.maxHealth;
+          gameState.mana = posData.mana;
+          gameState.maxMana = posData.maxMana;
+          updatePlayerStats();
+
+          // Fetch other players
           const data = await apiCall('/players/online');
           updateOtherPlayers(data.players);
         } catch (error) {
@@ -821,23 +892,54 @@
         currentPlayerIds.add(player.userId);
 
         const latLng = [totalH - player.y, player.x];
+        const healthPercent = (player.health / player.maxHealth) * 100;
+        let healthClass = 'health-high';
+        if (healthPercent < 30) {
+          healthClass = 'health-low';
+        } else if (healthPercent < 70) {
+          healthClass = 'health-medium';
+        }
 
         if (gameState.otherPlayers.has(player.userId)) {
-          // Update existing marker
-          const marker = gameState.otherPlayers.get(player.userId);
-          marker.setLatLng(latLng);
+          // Update existing marker - remove and recreate with new health
+          const oldMarker = gameState.otherPlayers.get(player.userId);
+          map.removeLayer(oldMarker);
+          
+          const customIcon = L.divIcon({
+            className: 'custom-player-marker',
+            html: `
+              <div style="text-align: center;">
+                <div style="width: 12px; height: 12px; background: ${realmColors[player.realm]}; border: 2px solid #fff; border-radius: 50%; margin: 0 auto;"></div>
+                <div class="territory-health-bar" style="margin-top: 2px;">
+                  <div class="territory-health-fill ${healthClass}" style="width: ${healthPercent}%;"></div>
+                </div>
+              </div>
+            `,
+            iconSize: [40, 20],
+            iconAnchor: [20, 10]
+          });
+          
+          const marker = L.marker(latLng, { icon: customIcon }).addTo(map);
+          marker.bindPopup(`<b>${player.username}</b><br>Realm: ${player.realm}<br>Health: ${player.health}/${player.maxHealth}`);
+          gameState.otherPlayers.set(player.userId, marker);
         } else {
-          // Create new marker
-          const marker = L.circleMarker(latLng, {
-            radius: 6,
-            fillColor: realmColors[player.realm],
-            color: '#fff',
-            weight: 1,
-            opacity: 0.8,
-            fillOpacity: 0.7
-          }).addTo(map);
+          // Create new marker with health bar
+          const customIcon = L.divIcon({
+            className: 'custom-player-marker',
+            html: `
+              <div style="text-align: center;">
+                <div style="width: 12px; height: 12px; background: ${realmColors[player.realm]}; border: 2px solid #fff; border-radius: 50%; margin: 0 auto;"></div>
+                <div class="territory-health-bar" style="margin-top: 2px;">
+                  <div class="territory-health-fill ${healthClass}" style="width: ${healthPercent}%;"></div>
+                </div>
+              </div>
+            `,
+            iconSize: [40, 20],
+            iconAnchor: [20, 10]
+          });
 
-          marker.bindPopup(`<b>${player.username}</b><br>Realm: ${player.realm}`);
+          const marker = L.marker(latLng, { icon: customIcon }).addTo(map);
+          marker.bindPopup(`<b>${player.username}</b><br>Realm: ${player.realm}<br>Health: ${player.health}/${player.maxHealth}`);
           gameState.otherPlayers.set(player.userId, marker);
         }
       });
@@ -902,13 +1004,7 @@
         if (iconData) {
           // Determine health bar color and calculate percentage
           const health = territory.health;
-          // Calculate max health based on type
-          let maxHealth = 100000; // forts
-          if (territory.type === 'castle') {
-            maxHealth = 250000;
-          } else if (territory.type === 'wall') {
-            maxHealth = 500000;
-          }
+          const maxHealth = territory.maxHealth;
           
           const healthPercent = Math.round((health / maxHealth) * 100);
           
@@ -967,6 +1063,101 @@
         if (!currentTerritoryIds.has(territoryId)) {
           map.removeLayer(marker);
           gameState.territories.delete(territoryId);
+        }
+      }
+    }
+
+    function startSuperbossesPolling() {
+      // Poll every 5 seconds
+      gameState.superbossesPollInterval = setInterval(async () => {
+        try {
+          const data = await apiCall('/superbosses');
+          updateSuperbosses(data.superbosses);
+        } catch (error) {
+          console.error('Failed to fetch superbosses:', error);
+        }
+      }, 5000);
+
+      // Initial fetch
+      apiCall('/superbosses').then(data => {
+        updateSuperbosses(data.superbosses);
+      });
+    }
+
+    function updateSuperbosses(bosses) {
+      const currentBossIds = new Set();
+
+      bosses.forEach(boss => {
+        currentBossIds.add(boss.bossId);
+
+        const latLng = [totalH - boss.y, boss.x];
+        const healthPercent = Math.round((boss.health / boss.maxHealth) * 100);
+        
+        let healthClass = 'health-high';
+        if (healthPercent < 30) {
+          healthClass = 'health-low';
+        } else if (healthPercent < 70) {
+          healthClass = 'health-medium';
+        }
+
+        // Determine icon based on boss name
+        let iconUrl = 'assets/icons/boss-default.png';
+        if (boss.name === 'Thorkul') {
+          iconUrl = 'assets/icons/boss-thorkul.png';
+        } else if (boss.name === 'Daen Rha') {
+          iconUrl = 'assets/icons/boss-daen-rha.png';
+        } else if (boss.name === 'Evendim') {
+          iconUrl = 'assets/icons/boss-evendim.png';
+        } else if (boss.name === 'Vesper') {
+          iconUrl = 'assets/icons/boss-vesper.png';
+        } else if (boss.name === 'Alasthor') {
+          iconUrl = 'assets/icons/boss-alasthor.png';
+        } else if (boss.name === 'Tenax') {
+          iconUrl = 'assets/icons/boss-tenax.png';
+        }
+
+        // Create custom HTML marker with health bar
+        const customIcon = L.divIcon({
+          className: 'custom-territory-marker',
+          html: `
+            <div class="territory-marker">
+              <div class="territory-icon" style="background-image: url('${iconUrl}');"></div>
+              <div class="territory-health-bar">
+                <div class="territory-health-fill ${healthClass}" style="width: ${healthPercent}%;"></div>
+              </div>
+            </div>
+          `,
+          iconSize: [40, 44],
+          iconAnchor: [20, 38]
+        });
+
+        if (gameState.superbosses.has(boss.bossId)) {
+          // Update existing marker
+          const oldMarker = gameState.superbosses.get(boss.bossId);
+          map.removeLayer(oldMarker);
+          
+          const marker = L.marker(latLng, { icon: customIcon }).addTo(map);
+          marker.bindTooltip(`<b>${boss.name}</b><br>Health: ${boss.health.toLocaleString()}/${boss.maxHealth.toLocaleString()}`, {
+            permanent: false,
+            direction: 'top'
+          });
+          gameState.superbosses.set(boss.bossId, marker);
+        } else {
+          // Create new marker
+          const marker = L.marker(latLng, { icon: customIcon }).addTo(map);
+          marker.bindTooltip(`<b>${boss.name}</b><br>Health: ${boss.health.toLocaleString()}/${boss.maxHealth.toLocaleString()}`, {
+            permanent: false,
+            direction: 'top'
+          });
+          gameState.superbosses.set(boss.bossId, marker);
+        }
+      });
+
+      // Remove markers for bosses no longer alive
+      for (const [bossId, marker] of gameState.superbosses.entries()) {
+        if (!currentBossIds.has(bossId)) {
+          map.removeLayer(marker);
+          gameState.superbosses.delete(bossId);
         }
       }
     }

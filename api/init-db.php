@@ -34,10 +34,13 @@ try {
             realm TEXT,
             x INTEGER NOT NULL DEFAULT 0,
             y INTEGER NOT NULL DEFAULT 0,
+            health INTEGER NOT NULL DEFAULT 600,
+            max_health INTEGER NOT NULL DEFAULT 600,
+            mana INTEGER NOT NULL DEFAULT 200,
+            max_mana INTEGER NOT NULL DEFAULT 200,
             last_active INTEGER NOT NULL
         )
-    ');
-
+    '); 
     $db->exec('CREATE INDEX IF NOT EXISTS idx_players_last_active ON players(last_active)');
     $db->exec('CREATE INDEX IF NOT EXISTS idx_players_realm ON players(realm)');
 
@@ -49,6 +52,7 @@ try {
             name TEXT NOT NULL,
             type TEXT NOT NULL,
             health INTEGER NOT NULL DEFAULT 100,
+            max_health INTEGER NOT NULL DEFAULT 100,
             x INTEGER NOT NULL,
             y INTEGER NOT NULL,
             owner_realm TEXT,
@@ -61,23 +65,39 @@ try {
     $db->exec('CREATE INDEX IF NOT EXISTS idx_territories_realm ON territories(realm)');
     $db->exec('CREATE INDEX IF NOT EXISTS idx_territories_owner ON territories(owner_realm)');
 
+    // Create superbosses table
+    $db->exec('
+        CREATE TABLE IF NOT EXISTS superbosses (
+            boss_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            health INTEGER NOT NULL,
+            max_health INTEGER NOT NULL,
+            x INTEGER NOT NULL,
+            y INTEGER NOT NULL,
+            last_attacked INTEGER,
+            respawn_time INTEGER
+        )
+    ');
+
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_superbosses_health ON superbosses(health)');
+
     // Seed territories with forts, castles, and walls
     $territories = [
         // Syrtis
-        ['syrtis', 'Algaros Fort', 'fort', 1742, 3200, 'syrtis', 100000],
-        ['syrtis', 'Herbret Fort', 'fort', 2896, 3237, 'syrtis', 100000],
-        ['syrtis', 'Eferias Castle', 'castle', 3757, 4717, 'syrtis', 250000],
-        ['syrtis', 'Syrtis Realm Wall', 'wall', 2357, 4037, 'syrtis', 500000],
+        ['syrtis', 'Algaros Fort', 'fort', 1742, 3200, 'syrtis', 100000, 100000],
+        ['syrtis', 'Herbret Fort', 'fort', 2896, 3237, 'syrtis', 100000, 100000],
+        ['syrtis', 'Eferias Castle', 'castle', 3757, 4717, 'syrtis', 250000, 250000],
+        ['syrtis', 'Syrtis Realm Wall', 'wall', 2357, 4037, 'syrtis', 500000, 500000],
         // Ignis
-        ['ignis', 'Menirah Fort', 'fort', 3379, 1689, 'ignis', 100000],
-        ['ignis', 'Samal Fort', 'fort', 3684, 2432, 'ignis', 100000],
-        ['ignis', 'Shaanarid Castle', 'castle', 4608, 2974, 'ignis', 250000],
-        ['ignis', 'Ignis Realm Wall', 'wall', 4148, 1966, 'ignis', 500000],
+        ['ignis', 'Menirah Fort', 'fort', 3379, 1689, 'ignis', 100000, 100000],
+        ['ignis', 'Samal Fort', 'fort', 3684, 2432, 'ignis', 100000, 100000],
+        ['ignis', 'Shaanarid Castle', 'castle', 4608, 2974, 'ignis', 250000, 250000],
+        ['ignis', 'Ignis Realm Wall', 'wall', 4148, 1966, 'ignis', 500000, 500000],
         // Alsius
-        ['alsius', 'Trelleborg Fort', 'fort', 1640, 2441, 'alsius', 100000],
-        ['alsius', 'Aggersborg Fort', 'fort', 2729, 2415, 'alsius', 100000],
-        ['alsius', 'Imperia Castle', 'castle', 2802, 1103, 'alsius', 250000],
-        ['alsius', 'Alsius Realm Wall', 'wall', 1755, 2106, 'alsius', 500000],
+        ['alsius', 'Trelleborg Fort', 'fort', 1640, 2441, 'alsius', 100000, 100000],
+        ['alsius', 'Aggersborg Fort', 'fort', 2729, 2415, 'alsius', 100000, 100000],
+        ['alsius', 'Imperia Castle', 'castle', 2802, 1103, 'alsius', 250000, 250000],
+        ['alsius', 'Alsius Realm Wall', 'wall', 1755, 2106, 'alsius', 500000, 500000],
     ];
 
     $stmt = $db->prepare('SELECT COUNT(*) FROM territories');
@@ -85,19 +105,42 @@ try {
     $count = $stmt->fetchColumn();
 
     if ($count == 0) {
-        $stmt = $db->prepare('INSERT INTO territories (realm, name, type, x, y, owner_realm, health) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        $stmt = $db->prepare('INSERT INTO territories (realm, name, type, x, y, owner_realm, health, max_health) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
         foreach ($territories as $territory) {
             $stmt->execute($territory);
         }
         echo "  - Seeded " . count($territories) . " territories (forts, castles, and walls)\n";
     }
 
+    // Seed superbosses
+    $superbosses = [
+        ['Thorkul', 1500000, 2327, 1989],
+        ['Daen Rha', 1500000, 3907, 2654],
+        ['Evendim', 1500000, 3177, 3760],
+        ['Alasthor', 1500000, 1504, 1097],
+        ['Vesper', 1500000, 2264, 5519],
+        ['Tenax', 1500000, 4285, 1371],
+    ];
+
+    $stmt = $db->prepare('SELECT COUNT(*) FROM superbosses');
+    $stmt->execute();
+    $count = $stmt->fetchColumn();
+
+    if ($count == 0) {
+        $stmt = $db->prepare('INSERT INTO superbosses (name, max_health, health, x, y) VALUES (?, ?, ?, ?, ?)');
+        foreach ($superbosses as $boss) {
+            $stmt->execute([$boss[0], $boss[1], $boss[1], $boss[2], $boss[3]]);
+        }
+        echo "  - Seeded " . count($superbosses) . " superbosses\n";
+    }
+
     echo "Database initialized successfully!\n";
     echo "Database location: " . DB_PATH . "\n";
     echo "\nTables created:\n";
     echo "  - sessions (session_id, user_id, username, realm, created_at, expires_at, last_activity)\n";
-    echo "  - players (user_id, username, realm, x, y, last_active)\n";
+    echo "  - players (user_id, username, realm, x, y, health, max_health, mana, max_mana, last_active)\n";
     echo "  - territories (territory_id, realm, name, type, health, x, y, owner_realm, owner_players, contested, contested_since)\n";
+    echo "  - superbosses (boss_id, name, health, max_health, x, y, last_attacked, respawn_time)\n";
 } catch (PDOException $e) {
     echo "Error initializing database: " . $e->getMessage() . "\n";
     exit(1);

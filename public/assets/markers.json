@@ -12,6 +12,7 @@
     "door-vulnerable": { "url": "assets/icons/door-vulnerable.png", "size": [24, 24], "anchor": [12, 24] },
     "door-safe": { "url": "assets/icons/door-safe.png", "size": [24, 24], "anchor": [12, 24] },
     "door-warning": { "url": "assets/icons/door-warning.png", "size": [24, 24], "anchor": [12, 24] }
+
   },
   "features": [
 
