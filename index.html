@@ -55,10 +55,57 @@
       z-index: 1000;
       pointer-events: none;
     }
+    /* Right-side stacked in-game map thumbnails */
+    #side-maps{
+      position: absolute;
+      right: 12px;
+      top: 50%; /* vertically center */
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 1000;
+      pointer-events: auto;
+      align-items: flex-end;
+      /* allow expanded thumbnails to overflow left */
+      will-change: transform;
+    }
+    .side-map{
+      width: 160px;
+      height: auto;
+      border-radius: 6px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+      transition: width 160ms ease, box-shadow 160ms ease;
+      display: block;
+      cursor: pointer;
+      object-fit: contain;
+      max-height: 30vh;
+    }
+    .side-map:focus{ outline: 2px solid rgba(13,110,253,0.6); outline-offset: 2px }
+    .side-map:hover, .side-map:focus{
+      width: auto; /* show native/original width */
+      height: auto;
+      max-width: 60vw; /* sensible cap so it doesn't overflow the viewport */
+      max-height: 80vh;
+      z-index: 2000;
+      box-shadow: 0 8px 26px rgba(0,0,0,0.55);
+    }
+    /* Reduce size on very small viewports */
+    @media (max-width: 480px){
+      #side-maps{ right: 6px; top: 50%; transform: translateY(-50%) }
+      .side-map{ width: 110px }
+      .side-map:hover, .side-map:focus{ max-width: 80vw; max-height: 60vh }
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
+  <div id="side-maps" aria-label="Other in-game maps">
+    <img class="side-map" src="assets/ingame-maps/map-alsius-ini.png" alt="Alsuis map" title="Alsuis" tabindex="0">
+    <img class="side-map" src="assets/ingame-maps/map-ignis-ini.png" alt="Ignis map" title="Ignis" tabindex="0">
+    <img class="side-map" src="assets/ingame-maps/map-syrtis-ini.png" alt="Syrtis map" title="Syrtis" tabindex="0">
+    <img class="side-map" src="assets/ingame-maps/map-isla-beta.png" alt="Isla map" title="Isla" tabindex="0">
+  </div>
   <img id="logo" src="assets/regnum-logo.png" alt="Regnum logo">
   <div id="attribution" aria-label="Map author and source">
     Joshua2504 — <a href="https://github.com/CoR-Forum/RegnumMap-Nostalgia" target="_blank" rel="noopener noreferrer">GitHub</a>
@@ -122,5 +169,6 @@
       document.getElementById('map').innerText = 'Failed to load tiles. Check tiles/ filenames.';
     };
   </script>
+  
 </body>
 </html>
