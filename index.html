@@ -39,12 +39,14 @@
       map.setMaxBounds(fullBounds);
 
       // Add each tile as an ImageOverlay positioned by pixel bounds
+      // Note: flip vertical ordering so rows 1 and 3 are swapped
       for(let r=1; r<=rows; r++){
         for(let c=1; c<=cols; c++){
-          const y1 = (r-1)*tileH;
-          const x1 = (c-1)*tileW;
-          const y2 = r*tileH;
-          const x2 = c*tileW;
+          const rowPos = rows - r; // invert row index
+          const y1 = rowPos * tileH;
+          const x1 = (c-1) * tileW;
+          const y2 = (rowPos + 1) * tileH;
+          const x2 = c * tileW;
           L.imageOverlay(tileUrl(r,c), [[y1,x1],[y2,x2]]).addTo(map);
         }
       }
