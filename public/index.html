@@ -638,21 +638,27 @@
       <div id="step-login" class="modal-step active">
         <h2 class="modal-title">Regnum Online - Login</h2>
         <div class="modal-body">
+          <div style="background:#062635;color:#e0e0e0;padding:8px;border:1px solid #083a52;border-radius:4px;margin-bottom:12px;font-size:11px;text-align:center;">
+        Login with your cor-forum.de account
+          </div>
           <div id="login-error" class="error-message hidden"></div>
           <form id="login-form">
-            <div class="form-group">
-              <label class="form-label" for="username">Username</label>
-              <input type="text" id="username" class="form-input" placeholder="Enter your username" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="password">Password</label>
-              <input type="password" id="password" class="form-input" placeholder="Enter your password" required>
-            </div>
-            <button type="submit" id="login-btn" class="btn btn-primary">
-              <span id="login-text">Login</span>
-              <span id="login-spinner" class="loading-spinner" style="display:none;"></span>
-            </button>
+        <div class="form-group">
+          <label class="form-label" for="username">Username</label>
+          <input type="text" id="username" class="form-input" placeholder="Enter your cor-forum.de username" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input type="password" id="password" class="form-input" placeholder="Enter your password" required>
+        </div>
+        <button type="submit" id="login-btn" class="btn btn-primary">
+          <span id="login-text">Login</span>
+          <span id="login-spinner" class="loading-spinner" style="display:none;"></span>
+        </button>
           </form>
+          <p style="margin-top:8px;font-size:11px;color:#e0e0e0;text-align:center;">
+        <a href="https://cor-forum.de/board/register/" target="_blank" rel="noopener noreferrer" style="color:#00d9ff;text-decoration:underline;">Sign up</a>&nbsp;|&nbsp;<a href="https://cor-forum.de/board/lost-password/" target="_blank" rel="noopener noreferrer" style="color:#00d9ff;text-decoration:underline;">Reset password</a>
+          </p>
         </div>
       </div>
 
@@ -960,6 +966,11 @@
         ...options,
         headers
       });
+
+      // Surface explicit server error for 502 responses
+      if (response.status === 502) {
+        throw new Error('Server error');
+      }
 
       const data = await response.json();
       if (!data.success) {
