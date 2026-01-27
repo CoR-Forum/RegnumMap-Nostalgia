@@ -59,7 +59,7 @@
         }
       }
 
-      L.control.scale().addTo(map);
+      L.control.scale({metric: false, imperial: false}).addTo(map);
     };
 
     probe.onerror = () => {
