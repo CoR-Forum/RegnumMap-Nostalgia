@@ -79,11 +79,14 @@
       const totalH = rows * tileH;
 
       // Use CRS.Simple so coordinates map directly to pixels
+      // Disable the default zoomControl (placed top-left) so we can
+      // re-add it on the right side.
       const map = L.map('map', {
         crs: L.CRS.Simple,
         minZoom: -5,
         maxZoom: 5,
-        maxBoundsViscosity: 0.5
+        maxBoundsViscosity: 0.5,
+        zoomControl: false
       });
 
       const fullBounds = [[0,0],[totalH,totalW]]; // [[y1,x1],[y2,x2]]
@@ -110,6 +113,8 @@
       }
 
       L.control.scale({metric: false, imperial: false}).addTo(map);
+      // Add zoom control on the right side
+      L.control.zoom({ position: 'topright' }).addTo(map);
     };
 
     probe.onerror = () => {
