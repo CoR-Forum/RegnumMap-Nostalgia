@@ -328,6 +328,96 @@
     .health-high{ background: #22c55e; }
     .health-medium{ background: #eab308; }
     .health-low{ background: #ef4444; }
+
+    /* Inventory Item Styles */
+    .inventory-item{
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 10px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      transition: all 0.2s;
+    }
+    .inventory-item:hover{
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.2);
+    }
+
+    .item-icon{
+      width: 48px;
+      height: 48px;
+      background: rgba(0,0,0,0.4);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      flex-shrink: 0;
+    }
+
+    .item-details{
+      flex: 1;
+      min-width: 0;
+    }
+
+    .item-header{
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .item-name{
+      font-weight: 600;
+      font-size: 15px;
+      color: #fff;
+      margin: 0;
+    }
+
+    .item-rarity{
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .item-rarity.common{ background: rgba(156,163,175,0.3); color: #9ca3af; }
+    .item-rarity.uncommon{ background: rgba(34,197,94,0.3); color: #22c55e; }
+    .item-rarity.rare{ background: rgba(59,130,246,0.3); color: #3b82f6; }
+    .item-rarity.epic{ background: rgba(168,85,247,0.3); color: #a855f7; }
+
+    .item-type{
+      font-size: 11px;
+      color: #aaa;
+      text-transform: capitalize;
+    }
+
+    .item-description{
+      font-size: 12px;
+      color: #ccc;
+      margin: 4px 0;
+      line-height: 1.4;
+    }
+
+    .item-stats{
+      font-size: 11px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    .item-quantity{
+      font-size: 14px;
+      color: #fff;
+      font-weight: 600;
+      background: rgba(59,130,246,0.3);
+      padding: 4px 8px;
+      border-radius: 4px;
+      align-self: center;
+    }
   </style>
 </head>
 <body>
@@ -386,6 +476,26 @@
     </div>
   </div>
 
+  <!-- Inventory Modal -->
+  <div id="inventory-overlay" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 9999;">
+    <div class="modal-content" style="max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h2 class="modal-title" style="margin: 0;">Inventory</h2>
+        <button id="inventory-close-btn" style="background: transparent; border: none; color: #fff; font-size: 28px; cursor: pointer; padding: 0; width: 32px; height: 32px; line-height: 1;">&times;</button>
+      </div>
+      <div id="inventory-list" style="overflow-y: auto; flex: 1; max-height: 60vh;">
+        <div id="inventory-loading" style="text-align: center; color: #aaa; padding: 40px;">
+          <div class="loading-spinner" style="margin: 0 auto 12px;"></div>
+          Loading inventory...
+        </div>
+        <div id="inventory-items" style="display: none;"></div>
+        <div id="inventory-empty" style="text-align: center; color: #aaa; padding: 40px; display: none;">
+          Your inventory is empty
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Player Info Panel -->
   <div id="player-info">
     <div class="player-name">
@@ -409,6 +519,7 @@
       </div>
     </div>
     <div class="player-coords" id="player-coords">Position: 0, 0</div>
+    <button class="btn-logout" id="inventory-btn" style="background: rgba(59, 130, 246, 0.8); margin-bottom: 8px;">Inventory</button>
     <button class="btn-logout" id="logout-btn">Logout</button>
   </div>
 
@@ -691,6 +802,23 @@
       });
     });
 
+    // Inventory button handler
+    document.getElementById('inventory-btn').addEventListener('click', () => {
+      openInventory();
+    });
+
+    // Close inventory handler
+    document.getElementById('inventory-close-btn').addEventListener('click', () => {
+      closeInventory();
+    });
+
+    // Close inventory on overlay click
+    document.getElementById('inventory-overlay').addEventListener('click', (e) => {
+      if (e.target.id === 'inventory-overlay') {
+        closeInventory();
+      }
+    });
+
     // Logout handler
     document.getElementById('logout-btn').addEventListener('click', () => {
       localStorage.removeItem('sessionToken');
@@ -710,6 +838,80 @@
     function showRealmSelection() {
       document.getElementById('step-login').classList.remove('active');
       document.getElementById('step-realm').classList.add('active');
+    }
+
+    async function openInventory() {
+      const overlay = document.getElementById('inventory-overlay');
+      overlay.style.display = 'flex';
+      document.getElementById('inventory-loading').style.display = 'block';
+      document.getElementById('inventory-items').style.display = 'none';
+      document.getElementById('inventory-empty').style.display = 'none';
+
+      try {
+        const data = await apiCall('/inventory');
+        displayInventory(data.items);
+      } catch (error) {
+        console.error('Failed to fetch inventory:', error);
+        alert('Failed to load inventory: ' + error.message);
+        closeInventory();
+      }
+    }
+
+    function closeInventory() {
+      document.getElementById('inventory-overlay').style.display = 'none';
+    }
+
+    function displayInventory(items) {
+      document.getElementById('inventory-loading').style.display = 'none';
+
+      if (items.length === 0) {
+        document.getElementById('inventory-empty').style.display = 'block';
+        return;
+      }
+
+      document.getElementById('inventory-items').style.display = 'block';
+      const container = document.getElementById('inventory-items');
+      container.innerHTML = '';
+
+      items.forEach(item => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'inventory-item';
+
+        // Determine icon based on item type
+        const iconMap = {
+          weapon: '⚔️',
+          armor: '🛡️',
+          consumable: '🧪',
+          currency: '💰',
+          misc: '📦'
+        };
+        const icon = iconMap[item.itemType] || '📦';
+
+        // Format stats
+        let statsHtml = '';
+        if (item.stats && Object.keys(item.stats).length > 0) {
+          const statsParts = Object.entries(item.stats).map(([key, value]) => {
+            return `${key.replace('_', ' ')}: ${value}`;
+          });
+          statsHtml = `<div class="item-stats">📊 ${statsParts.join(', ')}</div>`;
+        }
+
+        itemEl.innerHTML = `
+          <div class="item-icon">${icon}</div>
+          <div class="item-details">
+            <div class="item-header">
+              <h4 class="item-name">${item.itemName}</h4>
+              <span class="item-rarity ${item.rarity}">${item.rarity}</span>
+            </div>
+            <div class="item-type">${item.itemType}</div>
+            ${item.description ? `<div class="item-description">${item.description}</div>` : ''}
+            ${statsHtml}
+          </div>
+          ${item.quantity > 1 ? `<div class="item-quantity">×${item.quantity}</div>` : ''}
+        `;
+
+        container.appendChild(itemEl);
+      });
     }
 
     function hideModal() {

@@ -81,6 +81,37 @@ try {
 
     $db->exec('CREATE INDEX IF NOT EXISTS idx_superbosses_health ON superbosses(health)');
 
+    // Create items table (item templates)
+    $db->exec('
+        CREATE TABLE IF NOT EXISTS items (
+            item_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            type TEXT NOT NULL,
+            description TEXT,
+            stats TEXT,
+            rarity TEXT DEFAULT "common",
+            stackable INTEGER DEFAULT 1
+        )
+    ');
+
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_items_type ON items(type)');
+
+    // Create inventory table (player ownership)
+    $db->exec('
+        CREATE TABLE IF NOT EXISTS inventory (
+            inventory_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            item_id INTEGER NOT NULL,
+            quantity INTEGER NOT NULL DEFAULT 1,
+            acquired_at INTEGER NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES players(user_id),
+            FOREIGN KEY (item_id) REFERENCES items(item_id)
+        )
+    ');
+
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_inventory_user_id ON inventory(user_id)');
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_inventory_item_id ON inventory(item_id)');
+
     // Seed territories with forts, castles, and walls
     $territories = [
         // Syrtis
@@ -134,6 +165,58 @@ try {
         echo "  - Seeded " . count($superbosses) . " superbosses\n";
     }
 
+    // Seed items (item templates)
+    $items = [
+        ['Health Potion', 'consumable', 'Restores 100 health', '{"heal": 100}', 'common', 1],
+        ['Mana Potion', 'consumable', 'Restores 50 mana', '{"mana": 50}', 'common', 1],
+        ['Iron Sword', 'weapon', 'A basic iron sword', '{"damage": 15, "speed": 1.2}', 'common', 0],
+        ['Steel Sword', 'weapon', 'A sturdy steel sword', '{"damage": 25, "speed": 1.3}', 'uncommon', 0],
+        ['Wooden Shield', 'armor', 'A simple wooden shield', '{"defense": 10}', 'common', 0],
+        ['Iron Armor', 'armor', 'Basic iron chest armor', '{"defense": 20, "health": 50}', 'common', 0],
+        ['Magic Staff', 'weapon', 'A staff imbued with magic', '{"damage": 20, "mana_boost": 30}', 'rare', 0],
+        ['Gold Coin', 'currency', 'A shiny gold coin', '{"value": 1}', 'common', 1],
+        ['Health Elixir', 'consumable', 'Fully restores health', '{"heal": 9999}', 'rare', 1],
+        ['Teleport Scroll', 'consumable', 'Teleports to spawn point', '{}', 'uncommon', 1],
+    ];
+
+    $stmt = $db->prepare('SELECT COUNT(*) FROM items');
+    $stmt->execute();
+    $count = $stmt->fetchColumn();
+
+    if ($count == 0) {
+        $stmt = $db->prepare('INSERT INTO items (name, type, description, stats, rarity, stackable) VALUES (?, ?, ?, ?, ?, ?)');
+        foreach ($items as $item) {
+            $stmt->execute($item);
+        }
+        echo "  - Seeded " . count($items) . " item templates\n";
+    }
+
+    // Seed starter items for existing players
+    $stmt = $db->prepare('SELECT user_id FROM players WHERE user_id NOT IN (SELECT DISTINCT user_id FROM inventory)');
+    $stmt->execute();
+    $playersWithoutItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    if (count($playersWithoutItems) > 0) {
+        // Get item IDs for starter items
+        $stmt = $db->prepare('SELECT item_id FROM items WHERE name = ?');
+        $stmt->execute(['Health Potion']);
+        $healthPotionId = $stmt->fetchColumn();
+        $stmt->execute(['Mana Potion']);
+        $manaPotionId = $stmt->fetchColumn();
+        $stmt->execute(['Iron Sword']);
+        $ironSwordId = $stmt->fetchColumn();
+        
+        $stmt = $db->prepare('INSERT INTO inventory (user_id, item_id, quantity, acquired_at) VALUES (?, ?, ?, ?)');
+        foreach ($playersWithoutItems as $player) {
+            $now = time();
+            // Give starter items
+            $stmt->execute([$player['user_id'], $healthPotionId, 5, $now]);
+            $stmt->execute([$player['user_id'], $manaPotionId, 3, $now]);
+            $stmt->execute([$player['user_id'], $ironSwordId, 1, $now]);
+        }
+        echo "  - Seeded starter items for " . count($playersWithoutItems) . " existing players\n";
+    }
+
     echo "Database initialized successfully!\n";
     echo "Database location: " . DB_PATH . "\n";
     echo "\nTables created:\n";
@@ -141,6 +224,8 @@ try {
     echo "  - players (user_id, username, realm, x, y, health, max_health, mana, max_mana, last_active)\n";
     echo "  - territories (territory_id, realm, name, type, health, x, y, owner_realm, owner_players, contested, contested_since)\n";
     echo "  - superbosses (boss_id, name, health, max_health, x, y, last_attacked, respawn_time)\n";
+    echo "  - items (item_id, name, type, description, stats, rarity, stackable)\n";
+    echo "  - inventory (inventory_id, user_id, item_id, quantity, acquired_at)\n";
 } catch (PDOException $e) {
     echo "Error initializing database: " . $e->getMessage() . "\n";
     exit(1);

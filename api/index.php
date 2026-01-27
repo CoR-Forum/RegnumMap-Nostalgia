@@ -109,6 +109,14 @@ if ($path === '/login' && $requestMethod === 'POST') {
     handleGetTerritories();
 } elseif ($path === '/superbosses' && $requestMethod === 'GET') {
     handleGetSuperbosses();
+} elseif ($path === '/inventory' && $requestMethod === 'GET') {
+    handleGetInventory();
+} elseif ($path === '/inventory/add' && $requestMethod === 'POST') {
+    handleAddInventoryItem();
+} elseif ($path === '/inventory/remove' && $requestMethod === 'POST') {
+    handleRemoveInventoryItem();
+} elseif ($path === '/items' && $requestMethod === 'GET') {
+    handleGetItems();
 } else {
     respondError('Endpoint not found', 404);
 }
@@ -212,6 +220,29 @@ function handleRealmSelect() {
     } else {
         $stmt = $db->prepare('INSERT INTO players (user_id, username, realm, x, y, health, max_health, mana, max_mana, last_active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         $stmt->execute([$session['user_id'], $session['username'], $realm, $spawnX, $spawnY, 400, 600, 150, 200, now()]);
+    }
+
+    // Give starter items if player doesn't have any
+    $stmt = $db->prepare('SELECT COUNT(*) FROM inventory WHERE user_id = ?');
+    $stmt->execute([$session['user_id']]);
+    $itemCount = $stmt->fetchColumn();
+
+    if ($itemCount == 0) {
+        // Get item IDs for starter items
+        $stmt = $db->prepare('SELECT item_id FROM items WHERE name = ?');
+        $stmt->execute(['Health Potion']);
+        $healthPotionId = $stmt->fetchColumn();
+        $stmt->execute(['Mana Potion']);
+        $manaPotionId = $stmt->fetchColumn();
+        $stmt->execute(['Iron Sword']);
+        $ironSwordId = $stmt->fetchColumn();
+        
+        // Insert starter items
+        $stmt = $db->prepare('INSERT INTO inventory (user_id, item_id, quantity, acquired_at) VALUES (?, ?, ?, ?)');
+        $currentTime = now();
+        $stmt->execute([$session['user_id'], $healthPotionId, 5, $currentTime]);
+        $stmt->execute([$session['user_id'], $manaPotionId, 3, $currentTime]);
+        $stmt->execute([$session['user_id'], $ironSwordId, 1, $currentTime]);
     }
 
     // Update session realm
@@ -373,4 +404,204 @@ function handleGetSuperbosses() {
     }
 
     respondSuccess(['superbosses' => $result]);
+}
+
+/* ================================================================
+    GET INVENTORY
+================================================================ */
+function handleGetInventory() {
+    $session = validateSession();
+
+    if ($session['realm'] === null) {
+        respondError('Realm not selected');
+    }
+
+    $db = getDB();
+    $stmt = $db->prepare('
+        SELECT 
+            inv.inventory_id, 
+            inv.item_id,
+            inv.quantity, 
+            inv.acquired_at,
+            items.name,
+            items.type,
+            items.description,
+            items.stats,
+            items.rarity,
+            items.stackable
+        FROM inventory inv
+        JOIN items ON inv.item_id = items.item_id
+        WHERE inv.user_id = ? 
+        ORDER BY inv.acquired_at DESC
+    ');
+    $stmt->execute([$session['user_id']]);
+    $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $result = [];
+    foreach ($items as $item) {
+        $result[] = [
+            'inventoryId' => (int)$item['inventory_id'],
+            'itemId' => (int)$item['item_id'],
+            'itemName' => $item['name'],
+            'itemType' => $item['type'],
+            'quantity' => (int)$item['quantity'],
+            'description' => $item['description'],
+            'stats' => json_decode($item['stats'], true),
+            'rarity' => $item['rarity'],
+            'stackable' => (bool)$item['stackable'],
+            'acquiredAt' => (int)$item['acquired_at']
+        ];
+    }
+
+    respondSuccess(['items' => $result]);
+}
+
+/* ================================================================
+    ADD INVENTORY ITEM
+================================================================ */
+function handleAddInventoryItem() {
+    $session = validateSession();
+
+    if ($session['realm'] === null) {
+        respondError('Realm not selected');
+    }
+
+    $itemId = isset($_POST['itemId']) ? (int)$_POST['itemId'] : null;
+    $quantity = isset($_POST['quantity']) ? (int)$_POST['quantity'] : 1;
+
+    if (!$itemId) {
+        respondError('Item ID is required');
+    }
+
+    if ($quantity < 1) {
+        respondError('Quantity must be at least 1');
+    }
+
+    $db = getDB();
+    
+    // Check if item exists in items table
+    $stmt = $db->prepare('SELECT item_id, name, stackable FROM items WHERE item_id = ?');
+    $stmt->execute([$itemId]);
+    $item = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$item) {
+        respondError('Item does not exist', 404);
+    }
+    
+    // Check if player already has this item (for stackable items)
+    $stmt = $db->prepare('SELECT inventory_id, quantity FROM inventory WHERE user_id = ? AND item_id = ?');
+    $stmt->execute([$session['user_id'], $itemId]);
+    $existingItem = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($existingItem && $item['stackable']) {
+        // Update quantity for stackable items
+        $newQuantity = $existingItem['quantity'] + $quantity;
+        $stmt = $db->prepare('UPDATE inventory SET quantity = ? WHERE inventory_id = ?');
+        $stmt->execute([$newQuantity, $existingItem['inventory_id']]);
+        
+        respondSuccess([
+            'inventoryId' => (int)$existingItem['inventory_id'],
+            'itemId' => $itemId,
+            'itemName' => $item['name'],
+            'quantity' => $newQuantity
+        ]);
+    } else {
+        // Insert new item (or another copy for non-stackable items)
+        $stmt = $db->prepare('INSERT INTO inventory (user_id, item_id, quantity, acquired_at) VALUES (?, ?, ?, ?)');
+        $stmt->execute([$session['user_id'], $itemId, $quantity, now()]);
+        
+        respondSuccess([
+            'inventoryId' => (int)$db->lastInsertId(),
+            'itemId' => $itemId,
+            'itemName' => $item['name'],
+            'quantity' => $quantity
+        ]);
+    }
+}
+
+/* ================================================================
+    REMOVE INVENTORY ITEM
+================================================================ */
+function handleRemoveInventoryItem() {
+    $session = validateSession();
+
+    if ($session['realm'] === null) {
+        respondError('Realm not selected');
+    }
+
+    $inventoryId = isset($_POST['inventoryId']) ? (int)$_POST['inventoryId'] : null;
+    $quantity = isset($_POST['quantity']) ? (int)$_POST['quantity'] : 1;
+
+    if (!$inventoryId) {
+        respondError('Inventory ID is required');
+    }
+
+    if ($quantity < 1) {
+        respondError('Quantity must be at least 1');
+    }
+
+    $db = getDB();
+    
+    // Get current item with details from items table
+    $stmt = $db->prepare('
+        SELECT inv.inventory_id, inv.quantity, items.name
+        FROM inventory inv
+        JOIN items ON inv.item_id = items.item_id
+        WHERE inv.inventory_id = ? AND inv.user_id = ?
+    ');
+    $stmt->execute([$inventoryId, $session['user_id']]);
+    $item = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$item) {
+        respondError('Item not found', 404);
+    }
+
+    if ($item['quantity'] <= $quantity) {
+        // Remove item completely
+        $stmt = $db->prepare('DELETE FROM inventory WHERE inventory_id = ?');
+        $stmt->execute([$inventoryId]);
+        
+        respondSuccess([
+            'removed' => true,
+            'itemName' => $item['name']
+        ]);
+    } else {
+        // Decrease quantity
+        $newQuantity = $item['quantity'] - $quantity;
+        $stmt = $db->prepare('UPDATE inventory SET quantity = ? WHERE inventory_id = ?');
+        $stmt->execute([$newQuantity, $inventoryId]);
+        
+        respondSuccess([
+            'removed' => false,
+            'itemName' => $item['name'],
+            'quantity' => $newQuantity
+        ]);
+    }
+}
+
+/* ================================================================
+    GET ALL ITEMS (Templates)
+================================================================ */
+function handleGetItems() {
+    $session = validateSession();
+
+    $db = getDB();
+    $stmt = $db->prepare('SELECT item_id, name, type, description, stats, rarity, stackable FROM items ORDER BY type, name');
+    $stmt->execute();
+    $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $result = [];
+    foreach ($items as $item) {
+        $result[] = [
+            'itemId' => (int)$item['item_id'],
+            'name' => $item['name'],
+            'type' => $item['type'],
+            'description' => $item['description'],
+            'stats' => json_decode($item['stats'], true),
+            'rarity' => $item['rarity'],
+            'stackable' => (bool)$item['stackable']
+        ];
+    }
+
+    respondSuccess(['items' => $result]);
 }
