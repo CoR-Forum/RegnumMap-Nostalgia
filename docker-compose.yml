@@ -3,7 +3,7 @@ services:
   web:
     image: nginx:stable-alpine
     ports:
-      - "8000:80"
+      - "8321:80"
     volumes:
       - ./index.html:/usr/share/nginx/html/index.html:ro
       - ./assets:/usr/share/nginx/html/assets:ro
