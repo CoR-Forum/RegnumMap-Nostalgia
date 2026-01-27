@@ -2,17 +2,56 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <title>Regnum Online Old World Map</title>
+
+  <!-- Basic metadata -->
+  <meta name="description" content="Interactive tiled map viewer for Regnum Online Old World. Pan and zoom the stitched map using Leaflet.">
+  <meta name="keywords" content="Regnum Online, map, tiles, Leaflet, gaming, Old World, nostalgia">
+  <meta name="author" content="Joshua Treudler">
+  <meta name="robots" content="index,follow">
+  <meta name="theme-color" content="#0d6efd">
+
+  <!-- Social preview -->
+  <meta property="og:title" content="Regnum Online Old World Map">
+  <meta property="og:description" content="Interactive tiled map viewer for Regnum Online Old World.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="assets/preview.png">
+  <meta property="og:url" content="">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" href="assets/favicon.png" sizes="32x32">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
   <style>
     html,body,#map{height:100%;margin:0;padding:0}
     /* Background image shown behind tiles when panning outside bounds */
     #map{width:100vw;height:100vh; background: url('assets/background.jpg') center center / cover no-repeat}
+
+    /* Bottom-right author notice */
+    #attribution{
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      background: rgba(0,0,0,0.55);
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      z-index: 1000;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      line-height: 1;
+    }
+    #attribution a{ color: #fff; text-decoration: underline }
   </style>
 </head>
 <body>
   <div id="map"></div>
+  <div id="attribution" aria-label="Map author and source">
+    Joshua2504 — <a href="https://github.com/CoR-Forum/RegnumMap-Nostalgia" target="_blank" rel="noopener noreferrer">GitHub</a>
+  </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     // Configuration: 3 rows, 3 columns, tiles named `tiles/{row}-{col}.png`
