@@ -91,6 +91,7 @@ try {
             stats TEXT,
             rarity TEXT DEFAULT "common",
             stackable INTEGER DEFAULT 1,
+            level INTEGER DEFAULT 1,
             equipment_slot TEXT DEFAULT NULL
         )
     ');
@@ -201,16 +202,52 @@ try {
 
     // Seed items (item templates)
     $items = [
-        ['Health Potion', 'consumable', 'Restores 100 health', '{"heal": 100}', 'common', 1, NULL],
-        ['Mana Potion', 'consumable', 'Restores 50 mana', '{"mana": 50}', 'common', 1, NULL],
-        ['Iron Sword', 'weapon', 'A basic iron sword', '{"damage": 15, "speed": 1.2}', 'common', 0, 'weapon_right'],
-        ['Steel Sword', 'weapon', 'A sturdy steel sword', '{"damage": 25, "speed": 1.3}', 'uncommon', 0, 'weapon_right'],
-        ['Wooden Shield', 'armor', 'A simple wooden shield', '{"defense": 10}', 'common', 0, 'weapon_left'],
-        ['Iron Armor', 'armor', 'Basic iron chest armor', '{"defense": 20, "health": 50}', 'common', 0, 'body'],
-        ['Magic Staff', 'weapon', 'A staff imbued with magic', '{"damage": 20, "mana_boost": 30}', 'rare', 0, 'weapon_right'],
-        ['Gold Coin', 'currency', 'A shiny gold coin', '{"value": 1}', 'common', 1, NULL],
-        ['Health Elixir', 'consumable', 'Fully restores health', '{"heal": 9999}', 'rare', 1, NULL],
-        ['Teleport Scroll', 'consumable', 'Teleports to spawn point', '{}', 'uncommon', 1, NULL],
+        // Consumables & currency
+        ['Health Potion', 'consumable', 'Restores 100 health', '{"heal": 100}', 'common', 1, 1, NULL],
+        ['Mana Potion', 'consumable', 'Restores 50 mana', '{"mana": 50}', 'common', 1, 1, NULL],
+        ['Health Elixir', 'consumable', 'Fully restores health', '{"heal": 9999}', 'rare', 1, 5, NULL],
+        ['Teleport Scroll', 'consumable', 'Teleports to spawn point', '{}', 'uncommon', 1, 1, NULL],
+        ['Gold Coin', 'currency', 'A shiny gold coin', '{"value": 1}', 'common', 1, 0, NULL],
+
+        // Weapons (right hand)
+        ['Iron Sword', 'weapon', 'A basic iron sword', '{"damage": 15, "speed": 1.2}', 'common', 0, 1, 'weapon_right'],
+        ['Steel Sword', 'weapon', 'A sturdy steel sword', '{"damage": 25, "speed": 1.3}', 'uncommon', 0, 3, 'weapon_right'],
+        ['Magic Staff', 'weapon', 'A staff imbued with magic', '{"damage": 20, "mana_boost": 30}', 'rare', 0, 5, 'weapon_right'],
+        ['Battle Axe', 'weapon', 'A heavy two-handed axe', '{"damage": 35, "speed": 0.9}', 'rare', 0, 6, 'weapon_right'],
+        ['Dagger', 'weapon', 'A small quick blade', '{"damage": 8, "speed": 1.8}', 'common', 0, 1, 'weapon_right'],
+
+        // Off-hand (left hand) - shields / secondary weapons
+        ['Wooden Shield', 'armor', 'A simple wooden shield', '{"defense": 10}', 'common', 0, 1, 'weapon_left'],
+        ['Tower Shield', 'armor', 'Large shield offering excellent protection', '{"defense": 22}', 'uncommon', 0, 4, 'weapon_left'],
+
+        // Head
+        ['Leather Cap', 'armor', 'A light leather cap', '{"defense": 5}', 'common', 0, 1, 'head'],
+        ['Iron Helmet', 'armor', 'A sturdy iron helmet', '{"defense": 12}', 'uncommon', 0, 3, 'head'],
+
+        // Body
+        ['Leather Tunic', 'armor', 'Light leather armor for torso', '{"defense": 8}', 'common', 0, 1, 'body'],
+        ['Iron Armor', 'armor', 'Basic iron chest armor', '{"defense": 20, "health": 50}', 'common', 0, 4, 'body'],
+        ['Plate Armor', 'armor', 'Heavy plate armor', '{"defense": 40, "health": 150}', 'epic', 0, 8, 'body'],
+
+        // Hands
+        ['Leather Gloves', 'armor', 'Simple leather gloves', '{"defense": 3}', 'common', 0, 1, 'hands'],
+        ['Iron Gauntlets', 'armor', 'Sturdy iron gauntlets', '{"defense": 8}', 'uncommon', 0, 3, 'hands'],
+
+        // Shoulders
+        ['Leather Pauldrons', 'armor', 'Small shoulder guards', '{"defense": 4}', 'common', 0, 1, 'shoulders'],
+        ['Steel Pauldrons', 'armor', 'Reinforced shoulder armor', '{"defense": 10}', 'rare', 0, 4, 'shoulders'],
+
+        // Legs
+        ['Leather Leggings', 'armor', 'Light leg protection', '{"defense": 6}', 'common', 0, 1, 'legs'],
+        ['Iron Leggings', 'armor', 'Reinforced leg armor', '{"defense": 14}', 'uncommon', 0, 3, 'legs'],
+
+        // Rings (right/left)
+        ['Silver Ring', 'misc', 'A simple silver ring', '{"defense": 1}', 'common', 0, 1, 'ring_right'],
+        ['Gold Ring', 'misc', 'A ring of fine gold', '{"defense": 2}', 'uncommon', 0, 2, 'ring_left'],
+
+        // Amulets
+        ['Silver Amulet', 'misc', 'A charm worn around the neck', '{"mana_boost": 5}', 'common', 0, 1, 'amulet'],
+        ['Amulet of Strength', 'misc', 'Increases strength significantly', '{"damage": 10, "strength": 5}', 'rare', 0, 6, 'amulet'],
     ];
 
     $stmt = $db->prepare('SELECT COUNT(*) FROM items');
@@ -218,7 +255,7 @@ try {
     $count = $stmt->fetchColumn();
 
     if ($count == 0) {
-        $stmt = $db->prepare('INSERT INTO items (name, type, description, stats, rarity, stackable, equipment_slot) VALUES (?, ?, ?, ?, ?, ?, ?)');
+        $stmt = $db->prepare('INSERT INTO items (name, type, description, stats, rarity, stackable, level, equipment_slot) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
         foreach ($items as $item) {
             $stmt->execute($item);
         }

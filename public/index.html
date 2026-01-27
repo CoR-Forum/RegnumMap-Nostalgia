@@ -556,6 +556,28 @@
       margin: 0;
     }
 
+    .item-level{
+      font-size: 9px;
+      color: #cfcfcf;
+      margin-left: 6px;
+      font-weight: 700;
+      background: #111;
+      padding: 1px 4px;
+      border-radius: 3px;
+      border: 1px solid #333;
+    }
+
+    .tooltip-level{
+      font-size: 9px;
+      color: #000;
+      margin-left: 6px;
+      font-weight: 700;
+      background: #ffffe1;
+      padding: 1px 4px;
+      border-radius: 2px;
+      border: 1px solid #000;
+    }
+
     .item-rarity{
       font-size: 9px;
       padding: 1px 3px;
@@ -1154,10 +1176,10 @@
           <div class="item-icon">${icon}</div>
           <div class="item-details">
             <div class="item-header">
-              <h4 class="item-name">${item.itemName}</h4>
+              <h4 class="item-name">${item.itemName} ${typeof item.level !== 'undefined' ? `<span class="item-level">Lv ${item.level}</span>` : ''}</h4>
               <span class="item-rarity ${item.rarity}">${item.rarity}</span>
             </div>
-            <div class="item-type">${item.itemType}</div>
+            <div class="item-type">${getItemTypeLabel(item)}</div>
             ${item.description ? `<div class="item-description">${item.description}</div>` : ''}
             ${item.stats && Object.keys(item.stats).length > 0 ? `<div class="item-stats">Stats: ${Object.entries(item.stats).map(([k, v]) => `+${v} ${k.replace('_', ' ')}`).join(', ')}</div>` : ''}
           </div>
@@ -1216,8 +1238,8 @@
     function showTooltip(event, item) {
       hideTooltip();
       
-      const tooltip = document.createElement('div');
-      tooltip.className = 'item-tooltip';
+    const tooltip = document.createElement('div');
+    tooltip.className = 'item-tooltip';
       
       // Format stats
       let statsHtml = '';
@@ -1229,8 +1251,8 @@
       }
       
       tooltip.innerHTML = `
-        <div class="tooltip-name">${item.itemName}</div>
-        <div class="tooltip-type">${item.itemType}</div>
+        <div class="tooltip-name">${item.itemName} ${typeof item.level !== 'undefined' ? `<span class="tooltip-level">Lv ${item.level}</span>` : ''}</div>
+        <div class="tooltip-type">${getItemTypeLabel(item)}</div>
         ${item.description ? `<div class="tooltip-description">"${item.description}"</div>` : ''}
         ${statsHtml}
         <div class="tooltip-rarity ${item.rarity}">${item.rarity}</div>
@@ -1271,6 +1293,28 @@
       return '🔹';
     }
 
+    // Friendly label for item type + equipment slot
+    function getItemTypeLabel(item){
+      const slot = item.equipmentSlot || item.equipment_slot || null;
+      if(slot){
+        switch(slot){
+          case 'head': return 'Armor (Head)';
+          case 'body': return 'Armor (Body)';
+          case 'hands': return 'Armor (Hands)';
+          case 'shoulders': return 'Armor (Shoulders)';
+          case 'legs': return 'Armor (Legs)';
+          case 'weapon_right': return 'Weapon (Right Hand)';
+          case 'weapon_left': return 'Weapon (Left Hand)';
+          case 'ring_right':
+          case 'ring_left': return 'Ring';
+          case 'amulet': return 'Amulet';
+          default: return item.itemType || '';
+        }
+      }
+      const t = item.itemType || '';
+      return t.charAt(0).toUpperCase() + t.slice(1);
+    }
+
     function displayEquipment(equipment){
       try{
         const slots = ['head','body','hands','shoulders','legs','weapon_right','weapon_left','ring_right','ring_left','amulet'];
@@ -1295,10 +1339,12 @@
               const tooltipItem = {
                 itemName: it.name || it.itemName || '',
                 itemType: it.type || it.itemType || '',
+                equipmentSlot: it.equipmentSlot || it.equipment_slot || null,
                 description: it.description || '',
                 stats: it.stats || {},
                 rarity: it.rarity || 'common',
-                quantity: it.quantity || 1
+                quantity: it.quantity || 1,
+                level: typeof it.level !== 'undefined' ? it.level : 1
               };
               showTooltip(e, tooltipItem);
             });
@@ -1329,15 +1375,7 @@
               if(!payload) return;
               const data = JSON.parse(payload);
               if(data.inventoryId){
-                const itemSlot = data.equipmentSlot || null;
-                // Validate client-side: item must declare an equipmentSlot and it must match the target slot
-                if(!itemSlot || itemSlot !== slot){
-                  target.classList.add('invalid-equip');
-                  setTimeout(()=> target.classList.remove('invalid-equip'), 380);
-                  return;
-                }
-
-                // Server will determine the final slot from the item template; send only inventoryId
+                // Allow dropping onto any slot; server will auto-assign the correct template slot.
                 const form = new URLSearchParams();
                 form.append('inventoryId', data.inventoryId);
                 await apiCall('/equipment/equip', { method: 'POST', body: form });

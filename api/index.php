@@ -234,21 +234,17 @@ function handleRealmSelect() {
     $itemCount = $stmt->fetchColumn();
 
     if ($itemCount == 0) {
-        // Get item IDs for starter items
-        $stmt = $db->prepare('SELECT item_id FROM items WHERE name = ?');
-        $stmt->execute(['Health Potion']);
-        $healthPotionId = $stmt->fetchColumn();
-        $stmt->execute(['Mana Potion']);
-        $manaPotionId = $stmt->fetchColumn();
-        $stmt->execute(['Iron Sword']);
-        $ironSwordId = $stmt->fetchColumn();
-        
-        // Insert starter items
-        $stmt = $db->prepare('INSERT INTO inventory (user_id, item_id, quantity, acquired_at) VALUES (?, ?, ?, ?)');
-        $currentTime = now();
-        $stmt->execute([$session['user_id'], $healthPotionId, 5, $currentTime]);
-        $stmt->execute([$session['user_id'], $manaPotionId, 3, $currentTime]);
-        $stmt->execute([$session['user_id'], $ironSwordId, 1, $currentTime]);
+        // Give the new player one of every available item template
+        $stmt = $db->prepare('SELECT item_id, stackable FROM items');
+        $stmt->execute();
+        $templates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        $ins = $db->prepare('INSERT INTO inventory (user_id, item_id, quantity, acquired_at) VALUES (?, ?, ?, ?)');
+        $now = now();
+        foreach ($templates as $t) {
+            // Give quantity 1 for every template (stackable items also get 1)
+            $ins->execute([$session['user_id'], $t['item_id'], 1, $now]);
+        }
     }
 
     // Update session realm
@@ -455,6 +451,7 @@ function handleGetInventory() {
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
     } else {
+        // No equipped exclusions: select the full set of item fields (including level)
         $sql = '
         SELECT 
             inv.inventory_id, 
@@ -467,6 +464,7 @@ function handleGetInventory() {
             items.stats,
             items.rarity,
             items.stackable,
+            items.level,
             items.equipment_slot
         FROM inventory inv
         JOIN items ON inv.item_id = items.item_id
@@ -490,6 +488,7 @@ function handleGetInventory() {
             'stats' => json_decode($item['stats'], true),
             'rarity' => $item['rarity'],
             'stackable' => (bool)$item['stackable'],
+            'level' => isset($item['level']) ? (int)$item['level'] : 1,
             'equipmentSlot' => $item['equipment_slot'] !== null ? $item['equipment_slot'] : null,
             'acquiredAt' => (int)$item['acquired_at']
         ];
@@ -628,7 +627,7 @@ function handleGetItems() {
     $session = validateSession();
 
     $db = getDB();
-    $stmt = $db->prepare('SELECT item_id, name, type, description, stats, rarity, stackable, equipment_slot FROM items ORDER BY type, name');
+    $stmt = $db->prepare('SELECT item_id, name, type, description, stats, rarity, stackable, level, equipment_slot FROM items ORDER BY type, name');
     $stmt->execute();
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -642,6 +641,7 @@ function handleGetItems() {
             'stats' => json_decode($item['stats'], true),
             'rarity' => $item['rarity'],
             'stackable' => (bool)$item['stackable'],
+            'level' => isset($item['level']) ? (int)$item['level'] : 1,
             'equipmentSlot' => $item['equipment_slot'] !== null ? $item['equipment_slot'] : null
         ];
     }
@@ -692,6 +692,7 @@ function fetchEquippedItemDetails($db, $inventoryId) {
         'stats' => json_decode($it['stats'], true),
         'rarity' => $it['rarity'],
         'stackable' => (bool)$it['stackable'],
+        'level' => isset($it['level']) ? (int)$it['level'] : 1,
         'equipmentSlot' => isset($it['equipment_slot']) ? $it['equipment_slot'] : null
     ];
 }
