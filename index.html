@@ -45,10 +45,21 @@
       line-height: 1;
     }
     #attribution a{ color: #fff; text-decoration: underline }
+    /* Top-left logo */
+    #logo{
+      position: absolute;
+      left: 12px; /* keep near edge but avoid default controls */
+      top: 8px;
+      width: 200px; /* increased size */
+      height: auto;
+      z-index: 1000;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
+  <img id="logo" src="assets/regnum-logo.png" alt="Regnum logo">
   <div id="attribution" aria-label="Map author and source">
     Joshua2504 — <a href="https://github.com/CoR-Forum/RegnumMap-Nostalgia" target="_blank" rel="noopener noreferrer">GitHub</a>
   </div>
