@@ -101,6 +101,8 @@ if ($path === '/login' && $requestMethod === 'POST') {
     handleUpdatePosition();
 } elseif ($path === '/players/online' && $requestMethod === 'GET') {
     handleGetOnlinePlayers();
+} elseif ($path === '/territories' && $requestMethod === 'GET') {
+    handleGetTerritories();
 } else {
     respondError('Endpoint not found', 404);
 }
@@ -300,4 +302,35 @@ function handleGetOnlinePlayers() {
     }
 
     respondSuccess(['players' => $result]);
+}
+
+/* ================================================================
+    GET TERRITORIES
+================================================================ */
+function handleGetTerritories() {
+    $session = validateSession();
+
+    $db = getDB();
+    $stmt = $db->prepare('SELECT territory_id, realm, name, type, health, x, y, owner_realm, owner_players, contested, contested_since FROM territories');
+    $stmt->execute();
+    $territories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $result = [];
+    foreach ($territories as $territory) {
+        $result[] = [
+            'territoryId' => (int)$territory['territory_id'],
+            'realm' => $territory['realm'],
+            'name' => $territory['name'],
+            'type' => $territory['type'],
+            'health' => (int)$territory['health'],
+            'x' => (int)$territory['x'],
+            'y' => (int)$territory['y'],
+            'ownerRealm' => $territory['owner_realm'],
+            'ownerPlayers' => $territory['owner_players'],
+            'contested' => (bool)$territory['contested'],
+            'contestedSince' => $territory['contested_since'] ? (int)$territory['contested_since'] : null
+        ];
+    }
+
+    respondSuccess(['territories' => $result]);
 }

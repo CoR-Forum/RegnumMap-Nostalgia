@@ -41,6 +41,57 @@ try {
     $db->exec('CREATE INDEX IF NOT EXISTS idx_players_last_active ON players(last_active)');
     $db->exec('CREATE INDEX IF NOT EXISTS idx_players_realm ON players(realm)');
 
+    // Create territories table (forts and castles)
+    $db->exec('
+        CREATE TABLE IF NOT EXISTS territories (
+            territory_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            realm TEXT NOT NULL,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL,
+            health INTEGER NOT NULL DEFAULT 100,
+            x INTEGER NOT NULL,
+            y INTEGER NOT NULL,
+            owner_realm TEXT,
+            owner_players TEXT,
+            contested INTEGER NOT NULL DEFAULT 0,
+            contested_since INTEGER
+        )
+    ');
+
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_territories_realm ON territories(realm)');
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_territories_owner ON territories(owner_realm)');
+
+    // Seed territories with forts, castles, and walls
+    $territories = [
+        // Syrtis
+        ['syrtis', 'Algaros Fort', 'fort', 1742, 3200, 'syrtis'],
+        ['syrtis', 'Herbret Fort', 'fort', 2896, 3237, 'syrtis'],
+        ['syrtis', 'Eferias Castle', 'castle', 3757, 4717, 'syrtis'],
+        ['syrtis', 'Syrtis Realm Wall', 'wall', 2357, 4037, 'syrtis'],
+        // Ignis
+        ['ignis', 'Menirah Fort', 'fort', 3379, 1689, 'ignis'],
+        ['ignis', 'Samal Fort', 'fort', 3684, 2432, 'ignis'],
+        ['ignis', 'Shaanarid Castle', 'castle', 4608, 2974, 'ignis'],
+        ['ignis', 'Ignis Realm Wall', 'wall', 4148, 1966, 'ignis'],
+        // Alsius
+        ['alsius', 'Trelleborg Fort', 'fort', 1640, 2441, 'alsius'],
+        ['alsius', 'Aggersborg Fort', 'fort', 2729, 2415, 'alsius'],
+        ['alsius', 'Imperia Castle', 'castle', 2802, 1103, 'alsius'],
+        ['alsius', 'Alsius Realm Wall', 'wall', 1755, 2106, 'alsius']
+    ];
+
+    $stmt = $db->prepare('SELECT COUNT(*) FROM territories');
+    $stmt->execute();
+    $count = $stmt->fetchColumn();
+
+    if ($count == 0) {
+        $stmt = $db->prepare('INSERT INTO territories (realm, name, type, x, y, owner_realm) VALUES (?, ?, ?, ?, ?, ?)');
+        foreach ($territories as $territory) {
+            $stmt->execute($territory);
+        }
+        echo "  - Seeded " . count($territories) . " territories (forts, castles, and walls)\n";
+    }
+
     echo "Database initialized successfully!\n";
     echo "Database location: " . DB_PATH . "\n";
     echo "\nTables created:\n";

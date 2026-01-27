@@ -69,72 +69,6 @@
       z-index: 1000;
       pointer-events: none;
     }
-    /* Right-side stacked in-game map thumbnails */
-    #side-maps{
-      position: absolute;
-      right: 12px;
-      top: 50%; /* vertically center */
-      transform: translateY(-50%);
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      z-index: 1000;
-      pointer-events: auto;
-      align-items: flex-end;
-      /* allow expanded thumbnails to overflow left */
-      will-change: transform;
-    }
-    .side-map{
-      width: 120px;
-      height: auto;
-      border-radius: 6px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.35);
-      transition: width 160ms ease, box-shadow 160ms ease;
-      display: block;
-      cursor: pointer;
-      object-fit: contain;
-      max-height: 30vh;
-    }
-    .side-map:focus{ outline: 2px solid rgba(13,110,253,0.6); outline-offset: 2px }
-    .side-map:hover, .side-map:focus{
-      width: auto; /* show native/original width */
-      height: auto;
-      max-width: 60vw; /* sensible cap so it doesn't overflow the viewport */
-      max-height: 80vh;
-      z-index: 2000;
-      box-shadow: 0 8px 26px rgba(0,0,0,0.55);
-    }
-    /* Reduce size on very small viewports */
-    @media (max-width: 480px){
-      /* On small viewports, move thumbnails to a centered bottom row
-         and allow horizontal scrolling if they overflow. */
-      #side-maps{
-        right: 0;
-        left: 0;
-        bottom: 12px;
-        top: auto;
-        transform: none;
-        justify-content: center;
-        align-items: center;
-        padding: 0 12px;
-        gap: 8px;
-        flex-direction: row;
-        overflow-x: auto;
-        max-width: 100%;
-      }
-      .side-map{
-        width: 28vw;
-        max-width: 120px;
-        height: auto;
-      }
-      .side-map:hover, .side-map:focus{
-        width: 35vw;
-        max-width: 160px;
-        max-height: 50vh;
-        z-index: 2000;
-        box-shadow: 0 8px 26px rgba(0,0,0,0.55);
-      }
-    }
 
     /* Login/Realm Modal Styles */
     #modal-overlay{
@@ -432,12 +366,6 @@
 
   <div id="map"></div>
   <div id="coords" aria-hidden="true"></div>
-  <div id="side-maps" aria-label="Other in-game maps">
-    <img class="side-map" src="assets/ingame-maps/map-alsius-ini.png" alt="Alsuis map" title="Alsuis" tabindex="0">
-    <img class="side-map" src="assets/ingame-maps/map-ignis-ini.png" alt="Ignis map" title="Ignis" tabindex="0">
-    <img class="side-map" src="assets/ingame-maps/map-syrtis-ini.png" alt="Syrtis map" title="Syrtis" tabindex="0">
-    <img class="side-map" src="assets/ingame-maps/map-isla-beta.png" alt="Isla map" title="Isla" tabindex="0">
-  </div>
   <img id="logo" src="assets/regnum-logo.png" alt="Regnum logo">
   <div id="attribution" aria-label="Map author and source">
     <a href="https://github.com/CoR-Forum/RegnumMap-Nostalgia" target="_blank" rel="noopener noreferrer">GitHub</a>
@@ -526,6 +454,8 @@
             iconAnchor: [anchor[0], anchor[1]]
           });
         }
+        // Store icons globally for territory markers
+        territoryIcons = icons;
 
         const layerIndex = {};
         const overlays = {};
@@ -595,6 +525,7 @@
     let map = null;
     let totalH = 0;
     let totalW = 0;
+    let territoryIcons = {};
     
     let gameState = {
       sessionToken: localStorage.getItem('sessionToken'),
@@ -604,7 +535,9 @@
       position: { x: 0, y: 0 },
       playerMarker: null,
       otherPlayers: new Map(),
-      pollInterval: null
+      territories: new Map(),
+      pollInterval: null,
+      territoriesPollInterval: null
     };
 
     // API Helper functions
@@ -711,6 +644,9 @@
       if (gameState.pollInterval) {
         clearInterval(gameState.pollInterval);
       }
+      if (gameState.territoriesPollInterval) {
+        clearInterval(gameState.territoriesPollInterval);
+      }
       location.reload();
     });
 
@@ -756,6 +692,9 @@
 
         // Start polling for other players
         startPlayerPolling();
+
+        // Start polling for territories
+        startTerritoriesPolling();
 
         updatePlayerCoords(gameState.position.x, gameState.position.y);
       } catch (error) {
@@ -877,6 +816,85 @@
         if (!currentPlayerIds.has(userId)) {
           map.removeLayer(marker);
           gameState.otherPlayers.delete(userId);
+        }
+      }
+    }
+
+    function startTerritoriesPolling() {
+      // Poll every 5 seconds
+      gameState.territoriesPollInterval = setInterval(async () => {
+        try {
+          const data = await apiCall('/territories');
+          updateTerritories(data.territories);
+        } catch (error) {
+          console.error('Failed to fetch territories:', error);
+        }
+      }, 5000);
+
+      // Initial fetch
+      apiCall('/territories').then(data => {
+        updateTerritories(data.territories);
+      });
+    }
+
+    function updateTerritories(territories) {
+      const currentTerritoryIds = new Set();
+
+      territories.forEach(territory => {
+        currentTerritoryIds.add(territory.territoryId);
+
+        const latLng = [totalH - territory.y, territory.x];
+        const isContested = territory.contested;
+        
+        // Determine icon key based on type, realm, and contested state
+        let iconKey = '';
+        if (territory.type === 'fort') {
+          iconKey = `fort-${territory.ownerRealm}`;
+          if (isContested) {
+            iconKey += '-contested';
+          }
+        }
+        // For castles, use fort icons
+        else if (territory.type === 'castle') {
+          iconKey = `fort-${territory.ownerRealm}`;
+          if (isContested) {
+            iconKey += '-contested';
+          }
+        }
+        // For walls, use door icons
+        else if (territory.type === 'wall') {
+          iconKey = isContested ? 'door-vulnerable' : 'door-safe';
+        }
+
+        const icon = territoryIcons[iconKey];
+
+        if (gameState.territories.has(territory.territoryId)) {
+          // Update existing marker - remove and recreate if icon changed
+          const oldMarker = gameState.territories.get(territory.territoryId);
+          map.removeLayer(oldMarker);
+          
+          if (icon) {
+            const marker = L.marker(latLng, { icon: icon }).addTo(map);
+            const statusText = isContested ? '<br><span style="color:#ef4444">⚔️ Contested!</span>' : '';
+            marker.bindPopup(`<b>${territory.name}</b><br>Type: ${territory.type}<br>Owner: ${territory.ownerRealm}<br>Health: ${territory.health}%${statusText}`);
+            gameState.territories.set(territory.territoryId, marker);
+          }
+        } else {
+          // Create new marker with icon
+          if (icon) {
+            const marker = L.marker(latLng, { icon: icon }).addTo(map);
+            const statusText = isContested ? '<br><span style="color:#ef4444">⚔️ Contested!</span>' : '';
+            marker.bindPopup(`<b>${territory.name}</b><br>Type: ${territory.type}<br>Owner: ${territory.ownerRealm}<br>Health: ${territory.health}%${statusText}`);
+            gameState.territories.set(territory.territoryId, marker);
+          }
+        }
+      });
+
+      // Remove markers for territories no longer in response (shouldn't happen normally)
+      for (const [territoryId, marker] of gameState.territories.entries()) {
+        if (!currentTerritoryIds.has(territoryId)) {
+          map.removeLayer(marker);
+          gameState.territories.delete(territoryId);
         }
       }
     }
