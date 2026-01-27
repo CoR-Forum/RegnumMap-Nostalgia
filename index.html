@@ -92,9 +92,34 @@
     }
     /* Reduce size on very small viewports */
     @media (max-width: 480px){
-      #side-maps{ right: 6px; top: 50%; transform: translateY(-50%) }
-      .side-map{ width: 110px }
-      .side-map:hover, .side-map:focus{ max-width: 80vw; max-height: 60vh }
+      /* On small viewports, move thumbnails to a centered bottom row
+         and allow horizontal scrolling if they overflow. */
+      #side-maps{
+        right: 0;
+        left: 0;
+        bottom: 12px;
+        top: auto;
+        transform: none;
+        justify-content: center;
+        align-items: center;
+        padding: 0 12px;
+        gap: 8px;
+        flex-direction: row;
+        overflow-x: auto;
+        max-width: 100%;
+      }
+      .side-map{
+        width: 28vw;
+        max-width: 120px;
+        height: auto;
+      }
+      .side-map:hover, .side-map:focus{
+        width: 35vw;
+        max-width: 160px;
+        max-height: 50vh;
+        z-index: 2000;
+        box-shadow: 0 8px 26px rgba(0,0,0,0.55);
+      }
     }
   </style>
 </head>
