@@ -656,14 +656,8 @@ function handleGetTerritories() {
     $session = validateSession();
 
     $db = getDB();
-    try {
-        $stmt = $db->prepare('SELECT territory_id, realm, name, type, health, max_health, x, y, owner_realm, owner_players, contested, contested_since, icon_name, icon_name_contested FROM territories');
-        $stmt->execute();
-    } catch (Exception $e) {
-        // Backward compatibility: older DB without icon columns
-        $stmt = $db->prepare('SELECT territory_id, realm, name, type, health, max_health, x, y, owner_realm, owner_players, contested, contested_since, NULL as icon_name, NULL as icon_name_contested FROM territories');
-        $stmt->execute();
-    }
+    $stmt = $db->prepare('SELECT territory_id, realm, name, type, health, max_health, x, y, owner_realm, owner_players, contested, contested_since, icon_name, icon_name_contested FROM territories');
+    $stmt->execute();
     $territories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $result = [];
@@ -697,14 +691,8 @@ function handleGetSuperbosses() {
     $session = validateSession();
 
     $db = getDB();
-    try {
-        $stmt = $db->prepare('SELECT boss_id, name, icon_name, health, max_health, x, y, last_attacked, respawn_time FROM superbosses WHERE health > 0');
-        $stmt->execute();
-    } catch (Exception $e) {
-        // Backward compatibility if icon_name column is missing in older DBs
-        $stmt = $db->prepare('SELECT boss_id, name, NULL as icon_name, health, max_health, x, y, last_attacked, respawn_time FROM superbosses WHERE health > 0');
-        $stmt->execute();
-    }
+    $stmt = $db->prepare('SELECT boss_id, name, icon_name, health, max_health, x, y, last_attacked, respawn_time FROM superbosses WHERE health > 0');
+    $stmt->execute();
     $bosses = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $result = [];
