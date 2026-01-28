@@ -693,6 +693,9 @@
   <!-- Login/Realm Selection Modal -->
   <div id="modal-overlay">
     <div class="modal-content ui-window">
+      <div class="modal-logo" style="text-align:center;padding-bottom:8px;pointer-events:none;">
+        <img src="assets/regnum-nostalgia-logo.png" alt="Regnum Nostalgia" style="max-width:240px;height:auto;display:inline-block;">
+      </div>
       <!-- Step 1: Login -->
       <div id="step-login" class="modal-step active">
         <div class="modal-title ui-window-titlebar">
@@ -919,9 +922,10 @@
     </div>
   </div>
     <!-- Small info window under the character overlay -->
-    <div id="mini-info-window" class="ui-window" style="position: fixed; top: 100px; left: 8px; width: 220px; z-index: 20002; display: flex; flex-direction: column; font-family: 'MS Sans Serif', Arial, sans-serif; pointer-events: none;">
-      <div class="ui-window-titlebar" style="display:flex; justify-content: center; align-items: center; user-select: none;">
+    <div id="mini-info-window" class="ui-window" style="position: fixed; top: 100px; left: 8px; width: 220px; z-index: 20002; display: flex; flex-direction: column; font-family: 'MS Sans Serif', Arial, sans-serif; pointer-events: auto;">
+      <div class="ui-window-titlebar" style="display:flex; justify-content: center; align-items: center; user-select: none; position: relative;">
         <h2 style="margin: 0; flex: 1; font-size: 11px; font-weight: 700; color: #ffffff; font-family: 'MS Sans Serif', Arial, sans-serif; text-align: center;">Info</h2>
+        <button id="mini-info-close-btn" class="ui-window-close-btn" title="Close" style="position:absolute; right:6px; top:0; pointer-events:auto;"></button>
       </div>
       <div class="ui-window-body" style="display:block;padding:8px; color:#ffffff; font-size:12px; background: transparent;">
         <div id="mini-info-text" style="margin-bottom:6px;margin-top:15px">Welcome to Regnum Nostalgia!</div>
@@ -937,13 +941,16 @@
             <li>Territories synced with live server status</li>
           </ul>
           <strong>What doesn't work yet:</strong>
-          <ul style="margin:6px 0 0 18px;padding:0;">
+            <ul style="margin:6px 0 0 18px;padding:0;">
             <li>Combat and Spells</li>
             <li>Quests and NPCs</li>
             <li>Crafting and Gathering</li>
             <li>Social Features (Party, Guilds, Chat)</li>
-          </ul>
+            </ul>
         </div>
+                    <div class="error-message" style="margin-top:8px;">
+            <strong>Warning:</strong> The database may be wiped with any update. Expect loss of characters, inventory, and world state.
+            </div>
       </div>
     </div>
   <div id="attribution" aria-label="Map author and source">
@@ -2726,6 +2733,14 @@
         gameState.sessionToken = null;
       });
     }
+    // Mini info window close handler
+    (function(){
+      const btn = document.getElementById('mini-info-close-btn');
+      if(!btn) return;
+      btn.addEventListener('click', (e) => {
+        try { document.getElementById('mini-info-window').style.display = 'none'; } catch (err) {}
+      });
+    })();
   </script>
   <script src="build-path.js"></script>
   <style>
