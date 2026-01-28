@@ -79,10 +79,8 @@
         if (!latlngs || latlngs.length === 0) continue;
         const fill = (r.properties && r.properties.fillColor) ? r.properties.fillColor : (r.type === 'danger' ? '#ff5555' : '#55ff55');
         const stroke = (r.properties && r.properties.color) ? r.properties.color : '#228822';
-        const poly = L.polygon(latlngs, { color: stroke, weight: 2, opacity: 0.9, fillColor: fill, fillOpacity: 0.25, interactive: true });
+        const poly = L.polygon(latlngs, { color: stroke, weight: 2, opacity: 0.9, fillColor: fill, fillOpacity: 0.25, interactive: false });
         try { poly.addTo(mapRef); poly.bringToFront(); } catch (e) {}
-        const popupText = `<b>${r.name || 'Region'}</b><br>Type: ${r.type || 'n/a'}<br>Points: ${latlngs.length}`;
-        try { poly.bindPopup(popupText); } catch(e){}
         layers.push(poly);
       }
 
