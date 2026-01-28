@@ -67,7 +67,9 @@ try {
             owner_realm TEXT,
             owner_players TEXT,
             contested INTEGER NOT NULL DEFAULT 0,
-            contested_since INTEGER
+            contested_since INTEGER,
+            icon_name TEXT,
+            icon_name_contested TEXT
         )
     ');
 
@@ -79,6 +81,7 @@ try {
         CREATE TABLE IF NOT EXISTS superbosses (
             boss_id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
+            icon_name TEXT,
             health INTEGER NOT NULL,
             max_health INTEGER NOT NULL,
             x INTEGER NOT NULL,
@@ -212,21 +215,22 @@ try {
         echo "  - Initialized server_time (1 real hour = 24 in-game hours)\n";
     }
     $territories = [
+        // realm, name, type, x, y, owner_realm, health, max_health, icon_name, icon_name_contested
         // Alsius
-        ['alsius', 'Imperia Castle', 'castle', 2802, 1103, 'alsius', 250000, 250000],
-        ['alsius', 'Aggersborg Fort', 'fort', 2729, 2415, 'alsius', 100000, 100000],
-        ['alsius', 'Trelleborg Fort', 'fort', 1640, 2441, 'alsius', 100000, 100000],
-        ['alsius', 'Alsius Realm Wall', 'wall', 1755, 2106, 'alsius', 500000, 500000],
+        ['alsius', 'Imperia Castle', 'castle', 2802, 1103, 'alsius', 250000, 250000, 'fort-alsius.png', 'fort-alsius-contested.png'],
+        ['alsius', 'Aggersborg Fort', 'fort', 2729, 2415, 'alsius', 100000, 100000, 'fort-alsius.png', 'fort-alsius-contested.png'],
+        ['alsius', 'Trelleborg Fort', 'fort', 1640, 2441, 'alsius', 100000, 100000, 'fort-alsius.png', 'fort-alsius-contested.png'],
+        ['alsius', 'Alsius Realm Wall', 'wall', 1755, 2106, 'alsius', 500000, 500000, 'door-safe.png', 'door-vulnerable.png'],
         // Ignis
-        ['ignis', 'Menirah Fort', 'fort', 3379, 1689, 'ignis', 100000, 100000],
-        ['ignis', 'Samal Fort', 'fort', 3684, 2432, 'ignis', 100000, 100000],
-        ['ignis', 'Shaanarid Castle', 'castle', 4608, 2974, 'ignis', 250000, 250000],
-        ['ignis', 'Ignis Realm Wall', 'wall', 4148, 1966, 'ignis', 500000, 500000],
+        ['ignis', 'Menirah Fort', 'fort', 3379, 1689, 'ignis', 100000, 100000, 'fort-ignis.png', 'fort-ignis-contested.png'],
+        ['ignis', 'Samal Fort', 'fort', 3684, 2432, 'ignis', 100000, 100000, 'fort-ignis.png', 'fort-ignis-contested.png'],
+        ['ignis', 'Shaanarid Castle', 'castle', 4608, 2974, 'ignis', 250000, 250000, 'fort-ignis.png', 'fort-ignis-contested.png'],
+        ['ignis', 'Ignis Realm Wall', 'wall', 4148, 1966, 'ignis', 500000, 500000, 'door-safe.png', 'door-vulnerable.png'],
         // Syrtis
-        ['syrtis', 'Algaros Fort', 'fort', 1742, 3200, 'syrtis', 100000, 100000],
-        ['syrtis', 'Herbret Fort', 'fort', 2896, 3237, 'syrtis', 100000, 100000],
-        ['syrtis', 'Eferias Castle', 'castle', 3757, 4717, 'syrtis', 250000, 250000],
-        ['syrtis', 'Syrtis Realm Wall', 'wall', 2357, 4037, 'syrtis', 500000, 500000],
+        ['syrtis', 'Algaros Fort', 'fort', 1742, 3200, 'syrtis', 100000, 100000, 'fort-syrtis.png', 'fort-syrtis-contested.png'],
+        ['syrtis', 'Herbret Fort', 'fort', 2896, 3237, 'syrtis', 100000, 100000, 'fort-syrtis.png', 'fort-syrtis-contested.png'],
+        ['syrtis', 'Eferias Castle', 'castle', 3757, 4717, 'syrtis', 250000, 250000, 'fort-syrtis.png', 'fort-syrtis-contested.png'],
+        ['syrtis', 'Syrtis Realm Wall', 'wall', 2357, 4037, 'syrtis', 500000, 500000, 'door-safe.png', 'door-vulnerable.png'],
     ];
 
     $stmt = $db->prepare('SELECT COUNT(*) FROM territories');
@@ -234,7 +238,7 @@ try {
     $count = $stmt->fetchColumn();
 
     if ($count == 0) {
-        $stmt = $db->prepare('INSERT INTO territories (realm, name, type, x, y, owner_realm, health, max_health) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+        $stmt = $db->prepare('INSERT INTO territories (realm, name, type, x, y, owner_realm, health, max_health, icon_name, icon_name_contested) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
         foreach ($territories as $territory) {
             $stmt->execute($territory);
         }
@@ -242,13 +246,14 @@ try {
     }
 
     // Seed superbosses
+    // Icons live in public/assets/markers (boss-*.png)
     $superbosses = [
-        ['Thorkul', 1500000, 2327, 1989],
-        ['Daen Rha', 1500000, 3907, 2654],
-        ['Evendim', 1500000, 3177, 3760],
-        ['Alasthor', 1000000, 1504, 1097],
-        ['Vesper', 1000000, 2264, 5519],
-        ['Tenax', 1000000, 4285, 1371],
+        ['Thorkul', 'boss-thorkul.png', 1500000, 2327, 1989],
+        ['Daen Rha', 'boss-daen-rha.png', 1500000, 3907, 2654],
+        ['Evendim', 'boss-evendim.png', 1500000, 3177, 3760],
+        ['Alasthor', 'boss-alasthor.png', 1000000, 1504, 1097],
+        ['Vesper', 'boss-vesper.png', 1000000, 2264, 5519],
+        ['Tenax', 'boss-tenax.png', 1000000, 4285, 1371],
     ];
 
     $stmt = $db->prepare('SELECT COUNT(*) FROM superbosses');
@@ -256,9 +261,9 @@ try {
     $count = $stmt->fetchColumn();
 
     if ($count == 0) {
-        $stmt = $db->prepare('INSERT INTO superbosses (name, max_health, health, x, y) VALUES (?, ?, ?, ?, ?)');
+        $stmt = $db->prepare('INSERT INTO superbosses (name, icon_name, max_health, health, x, y) VALUES (?, ?, ?, ?, ?, ?)');
         foreach ($superbosses as $boss) {
-            $stmt->execute([$boss[0], $boss[1], $boss[1], $boss[2], $boss[3]]);
+            $stmt->execute([$boss[0], $boss[1], $boss[2], $boss[2], $boss[3], $boss[4]]);
         }
         echo "  - Seeded " . count($superbosses) . " superbosses\n";
     }

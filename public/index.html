@@ -1145,15 +1145,6 @@
 
     const API_BASE = '/api';
     const REALM_COLORS = { syrtis: '#22c55e', alsius: '#3b82f6', ignis: '#ef4444' };
-    const BOSS_ICONS = {
-      Thorkul: 'assets/markers/boss-thorkul.png',
-      'Daen Rha': 'assets/markers/boss-daen-rha.png',
-      Evendim: 'assets/markers/boss-evendim.png',
-      Vesper: 'assets/markers/boss-vesper.png',
-      Alasthor: 'assets/markers/boss-alasthor.png',
-      Tenax: 'assets/markers/boss-tenax.png',
-      default: 'assets/markers/boss-default.png'
-    };
     
     // Global map variables (set by probe.onload)
     let map = null;
@@ -1190,8 +1181,6 @@
       const key = (realm || '').toString().toLowerCase();
       return REALM_COLORS[key] || REALM_COLORS.syrtis;
     };
-
-    const getBossIcon = (name) => BOSS_ICONS[name] || BOSS_ICONS.default;
 
     const buildGoHereIcon = () => L.divIcon({
       className: 'custom-go-here-marker',
@@ -2497,29 +2486,14 @@
         const latLng = [totalH - territory.y, territory.x];
         const isContested = territory.contested;
         
-        // Determine icon key based on type, realm, and contested state
-        let iconKey = '';
-        if (territory.type === 'fort') {
-          iconKey = `fort-${territory.ownerRealm}`;
-          if (isContested) {
-            iconKey += '-contested';
-          }
-        }
-        // For castles, use fort icons
-        else if (territory.type === 'castle') {
-          iconKey = `fort-${territory.ownerRealm}`;
-          if (isContested) {
-            iconKey += '-contested';
-          }
-        }
-        // For walls, use door icons
-        else if (territory.type === 'wall') {
-          iconKey = isContested ? 'door-vulnerable' : 'door-safe';
-        }
+        // Prefer server-provided icon URLs; fall back to marker map
+        const iconUrl = isContested
+          ? (territory.iconUrlContested || (territory.iconNameContested ? `/assets/markers/${territory.iconNameContested}` : null))
+          : (territory.iconUrl || (territory.iconName ? `/assets/markers/${territory.iconName}` : null));
 
-        const iconData = territoryIcons[iconKey];
+        if (!iconUrl) return;
 
-        if (iconData) {
+        if (iconUrl) {
           // Determine health bar color and calculate percentage
           const health = territory.health;
           const maxHealth = territory.maxHealth;
@@ -2534,8 +2508,6 @@
           }
 
           // Get icon URL from the icon object
-          const iconUrl = iconData.options.iconUrl;
-
           // Create custom HTML marker with health bar
           const customIcon = L.divIcon({
             className: 'custom-territory-marker',
@@ -2615,7 +2587,9 @@
         const latLng = [totalH - boss.y, boss.x];
         const healthPercent = Math.max(0, Math.min(100, Math.round(((Number(boss.health) || 0) / (Number(boss.maxHealth) || 1)) * 100)));
         
-        const iconUrl = getBossIcon(boss.name);
+        const iconUrl = boss.iconUrl || (boss.iconName ? `/assets/markers/${boss.iconName}` : null);
+
+        if (!iconUrl) return;
 
         // Create custom HTML marker with health bar
         const customIcon = L.divIcon({
@@ -2873,7 +2847,7 @@
   </style>
   
   <!-- Shoutbox (Regnum window style) -->
-  <div id="shoutbox-window" class="ui-window" style="position: absolute; left: 0px; bottom: 0px; width: 300px; z-index: 20005; display: flex; flex-direction: column; font-family: 'MS Sans Serif', Arial, sans-serif;">
+  <div id="shoutbox-window" class="ui-window" style="position: absolute; left: 0px; bottom: 30px; width: 300px; z-index: 20005; display: flex; flex-direction: column; font-family: 'MS Sans Serif', Arial, sans-serif;">
     <div id="shoutbox-header" class="ui-window-titlebar" style="display:flex; justify-content: space-between; align-items: center; user-select: none;">
       <h2 style="margin:0; flex:1; font-size:11px; font-weight:700; color:#ffffff; text-align: center;">Chat</h2>
       <button id="shoutbox-close-btn" class="ui-window-close-btn" title="Close"></button>
