@@ -111,44 +111,9 @@
     }
   }
 
-  // Load and render regions (polygons) from API
-  async function loadAndRenderRegions(){
-    try {
-      if (gameState.regionsLayer) {
-        try { map.removeLayer(gameState.regionsLayer); } catch(e){}
-        gameState.regionsLayer = null;
-      }
-
-      const data = await apiCall('/regions');
-      const regions = data.regions || [];
-      // cache regions globally for hover/walk checks
-      try { if (typeof gameState !== 'undefined') gameState.regionsData = regions; } catch(e){}
-
-      const layers = [];
-      for (const r of regions) {
-        const pos = r.coordinates || r.positions || [];
-        const latlngs = positionsToLatLngs(pos);
-        if (!latlngs || latlngs.length === 0) continue;
-        const fill = (r.properties && r.properties.fillColor) ? r.properties.fillColor : (r.type === 'danger' ? '#ff5555' : '#55ff55');
-        const stroke = (r.properties && r.properties.color) ? r.properties.color : '#228822';
-        const poly = L.polygon(latlngs, { color: stroke, weight: 2, opacity: 0.9, fillColor: fill, fillOpacity: 0.25 }).addTo(map);
-        try { poly.bringToFront(); } catch (e) {}
-        const popupText = `<b>${r.name || 'Region'}</b><br>Type: ${r.type || 'n/a'}<br>Points: ${latlngs.length}`;
-        poly.bindPopup(popupText);
-        layers.push(poly);
-      }
-
-      if (layers.length > 0) {
-        gameState.regionsLayer = L.layerGroup(layers).addTo(map);
-      }
-    } catch (err) {
-      console.error('Failed to load regions:', err);
-    }
-  }
-
-  // expose as global for backward compatibility
+  // regions loading/mount moved to public/regions.js
+  // expose paths loader for backward compatibility
   window.loadAndRenderPaths = loadAndRenderPaths;
-  window.loadAndRenderRegions = loadAndRenderRegions;
 
   function onMapClick(e) {
     try {
