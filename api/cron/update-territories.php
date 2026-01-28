@@ -37,6 +37,9 @@ try {
     $updateStmt = $db->prepare('UPDATE territories SET realm = ? WHERE territory_id = ?');
     $insertCapture = $db->prepare('INSERT INTO territory_captures (territory_id, previous_realm, new_realm, captured_at) VALUES (?, ?, ?, ?)');
 
+    // Use a transaction so captures and territory updates stay consistent
+    $db->beginTransaction();
+
     $updated = 0;
     foreach ($data['forts'] as $fort) {
         if (!isset($fort['name']) || !isset($fort['owner'])) {
@@ -74,12 +77,31 @@ try {
         $updated += $updateStmt->rowCount();
     }
 
+    // Ensure territories.realm matches the most recent capture (if any)
+    $syncSql = "UPDATE territories SET realm = (
+        SELECT LOWER(new_realm) FROM territory_captures
+        WHERE territory_captures.territory_id = territories.territory_id
+        ORDER BY captured_at DESC, id DESC LIMIT 1
+    ) WHERE EXISTS (SELECT 1 FROM territory_captures WHERE territory_captures.territory_id = territories.territory_id)";
+    $synced = $db->exec($syncSql);
+    if ($synced !== false) {
+        $updated += $synced;
+    }
+
+    $db->commit();
+
     fwrite(STDOUT, "Updated territories: {$updated}\n");
 
 } catch (PDOException $e) {
+    if (isset($db) && $db->inTransaction()) {
+        $db->rollBack();
+    }
     fwrite(STDERR, "DB error: " . $e->getMessage() . "\n");
     exit(1);
 } catch (Exception $e) {
+    if (isset($db) && $db->inTransaction()) {
+        $db->rollBack();
+    }
     fwrite(STDERR, "Error: " . $e->getMessage() . "\n");
     exit(1);
 }
