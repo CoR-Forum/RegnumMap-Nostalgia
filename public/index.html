@@ -311,35 +311,7 @@
       to{ transform: rotate(360deg); }
     }
 
-    /* Player Info Panel */
-    #player-info{
-      position: absolute;
-      left: 8px;
-      top: 8px;
-      background: transparent;
-      color: #e0e0e0;
-      padding: 0;
-      font-size: 11px;
-      z-index: 1200;
-      font-family: 'MS Sans Serif', Arial, sans-serif;
-      min-width: 220px;
-      display: none;
-      box-shadow: none;
-      border: none;
-    }
-    #player-info.visible{ display: block; }
 
-    .player-name{
-      font-size: 11px;
-      font-weight: 700;
-      margin: 0;
-      padding: 3px 4px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      background: linear-gradient(180deg, #000080 0%, #1084d0 100%);
-      color: #ffffff;
-    }
 
     .realm-badge{
       display: inline-block;
@@ -409,9 +381,9 @@
       transition: width 0.3s ease;
       border-radius: 2px;
     }
-    .health-high{ background: #22c55e; }
-    .health-medium{ background: #eab308; }
-    .health-low{ background: #ef4444; }
+    .health-high{ background-color: #22c55e; }
+    .health-medium{ background-color: #eab308; }
+    .health-low{ background-color: #ef4444; }
 
     /* Inventory Grid Styles */
     .inventory-grid{
@@ -818,39 +790,7 @@
   
   <!-- Build Path panel moved to public/build-path.js -->
 
-  <!-- Player Info Panel -->
-  <div id="player-info">
-    <div class="player-name">
-      <span class="realm-badge"></span>
-      <span id="player-username"></span>
-    </div>
-    <div class="player-info-body">
-      <div style="margin: 6px 0;">
-        <div style="display: flex; align-items: center; margin-bottom: 4px;">
-          <span style="width: 45px; font-size: 11px; color: #e0e0e0;">Health:</span>
-          <div class="territory-health-bar" style="flex: 1; width: auto; margin-right: 4px;">
-            <div id="player-health-fill" class="territory-health-fill health-high" style="width: 100%;"></div>
-          </div>
-          <span id="player-health-text" style="font-size: 11px; color: #e0e0e0;">1000/1000</span>
-        </div>
-        <div style="display: flex; align-items: center;">
-          <span style="width: 45px; font-size: 11px; color: #e0e0e0;">Mana:</span>
-          <div class="territory-health-bar" style="flex: 1; width: auto; margin-right: 4px; background: rgba(59, 130, 246, 0.3); border-color: rgba(59, 130, 246, 0.5);">
-            <div id="player-mana-fill" class="territory-health-fill" style="width: 100%; background: #3b82f6;"></div>
-          </div>
-          <span id="player-mana-text" style="font-size: 11px; color: #e0e0e0;">500/500</span>
-        </div>
-      </div>
-      <div class="player-coords" id="player-coords">Position: 0, 0</div>
-      <div style="margin-top:6px; font-size: 12px; color: #e0e0e0; display:flex; gap:8px; align-items:center;">
-        <div style="display:flex; align-items:center; gap:6px;">
-          <span style="width:45px; font-size:11px; color:#e0e0e0;">Level:</span>
-          <div id="player-level" style="font-weight:600; color: #ffd700;">1</div>
-        </div>
-        <div style="flex:1;"></div>
-      </div>
-    </div>
-  </div>
+  <!-- Player info moved into the top-left character-status overlay -->
 
   <div id="map"></div>
   <div id="coords" aria-hidden="true"></div>
@@ -934,6 +874,33 @@
   <!-- Top-right compass (non-interactive) -->
   <div id="ui-compass" aria-hidden="true">
     <img src="assets/ui-v1/ui-compass.png" alt="">
+  </div>
+  <!-- Top-left character status (non-interactive) -->
+  <div id="ui-character-status" aria-hidden="true">
+    <img src="assets/ui-v1/ui-character-status.png" alt="">
+    <div class="ui-character-overlay" aria-hidden="true">
+      <div class="status-top">
+        <div id="player-level" style="font-weight:700; color:#ffd700; font-size:13px; min-width:28px; text-align:left;">1</div>
+      </div>
+      <div class="status-name">
+        <span id="player-username" style="font-size:13px; color:#ffffff;">-</span>
+      </div>
+      <div class="status-bars">
+        <div style="display:flex; align-items:center;">
+          <div class="territory-health-bar overlay-bar" style="margin-right:6px;">
+            <div id="player-health-fill" class="territory-health-fill health-high" style="width:100%; height:100%;"></div>
+            <div id="player-health-text" class="bar-text">1000/1000</div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; margin-top:0;">
+          <div class="territory-health-bar overlay-bar" style="margin-right:6px;">
+            <div id="player-mana-fill" class="territory-health-fill" style="width:100%; height:100%;"></div>
+            <div id="player-mana-text" class="bar-text">500/500</div>
+          </div>
+        </div>
+      </div>
+      <div id="player-coords" style="font-size:11px; color:#e0e0e0; margin-top:4px;">Position: 0, 0</div>
+    </div>
   </div>
   <div id="attribution" aria-label="Map author and source">
     <a href="https://github.com/CoR-Forum/RegnumMap-Nostalgia" target="_blank" rel="noopener noreferrer">GitHub</a>
@@ -1858,16 +1825,17 @@
     // Build panel wiring moved to public/build-path.js
 
     function showPlayerInfo() {
-      const panel = document.getElementById('player-info');
+      const username = gameState.username || '';
       const usernameEl = document.getElementById('player-username');
-      const realmBadge = panel.querySelector('.realm-badge');
-
-      usernameEl.textContent = gameState.username;
-      realmBadge.className = `realm-badge ${gameState.realm}`;
-      // populate level/xp display if present
+      const charNameEl = document.getElementById('char-name');
+      const realmBadge = document.querySelector('#ui-character-status .realm-badge');
+      console.debug('showPlayerInfo username=', username);
+      if (usernameEl) usernameEl.textContent = username;
+      if (charNameEl && !charNameEl.textContent.trim()) charNameEl.textContent = username || '-';
+      if (realmBadge) realmBadge.className = `realm-badge ${gameState.realm}`;
+      // populate level display if present
       const lvlEl = document.getElementById('player-level');
       if (lvlEl) lvlEl.textContent = gameState.level || 1;
-      panel.classList.add('visible');
     }
 
     function updatePlayerStats() {
@@ -1922,6 +1890,7 @@
         }
         gameState.position = data.position;
         gameState.realm = data.realm;
+        gameState.username = typeof data.username !== 'undefined' ? data.username : gameState.username;
         gameState.health = data.health;
         gameState.maxHealth = data.maxHealth;
         gameState.mana = data.mana;
@@ -2716,8 +2685,50 @@
     #ui-image-overlay .ui-bar-right{ flex: 0 0 auto; }
     #ui-image-overlay .ui-bar-right img{ height: 73px; display:block; pointer-events: none; }
     /* Top-right compass image */
-    #ui-compass{ position: fixed; top: 16px; right: 16px; z-index: 20001; pointer-events: none; }
+    #ui-compass{ position: fixed; top: 0; right: 0; z-index: 20001; pointer-events: none; }
     #ui-compass img{ height: 166px; display:block; }
+
+    /* Top-left character status (overlay) */
+    #ui-character-status{ position: fixed; top: 0; left: 0; z-index: 20001; pointer-events: none; }
+    #ui-character-status img{ height: 86px; width: auto; display:block; }
+    #ui-character-status .ui-character-overlay{ position: absolute; top: 4px; left: 6px; right: 6px; bottom: 4px; display:flex; flex-direction:column; justify-content:flex-start; align-items:center; gap:4px; box-sizing:border-box; pointer-events: none; z-index:20002; transform: translate(-6px, -2px); }
+    #ui-character-status .ui-character-overlay .status-top{ position:absolute; top:2px; left:4px; display:flex; align-items:center; gap:6px; z-index:20003; }
+    #ui-character-status .ui-character-overlay .status-name{ margin-top:6px; padding-top:0; font-size:13px; color:#ffffff; font-weight:600; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; text-align:center; align-self:center; max-width:160px; text-shadow:0 1px 0 rgba(0,0,0,0.8); transform: translateX(-20px); }
+    #ui-character-status .ui-character-overlay .status-bars{ display:flex; flex-direction:column; gap:0; transform: translateX(-15px) translateY(5px); }
+    /* Add padding to the level number so it sits away from top/left edges */
+    #ui-character-status .ui-character-overlay .status-top #player-level{ padding-top:8px; padding-left:12px; }
+    /* Username visibility */
+    #ui-character-status .ui-character-overlay .status-top #player-username{ white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:inline-block; max-width:120px; font-weight:600; text-shadow:0 1px 0 rgba(0,0,0,0.8); color:#fff; }
+    /* Use UI bar images for overlay health/mana fills and stretch them horizontally */
+    #ui-character-status .ui-character-overlay .territory-health-bar{ background: transparent; border: none; }
+    #ui-character-status .ui-character-overlay .territory-health-bar .territory-health-fill{ background-color: transparent; }
+    /* Use border-image 9-slice style like window title/body so caps are preserved and center repeats */
+    #ui-character-status .ui-character-overlay #player-health-fill{
+      background-color: transparent;
+      height:100%;
+      border-width: 0 2px 0 2px;
+      border-style: solid;
+      border-image: url('assets/ui-v1/ui-bar-health.png') 0 2 0 2 fill / 0 2px 0 2px / 0 stretch;
+      box-sizing: border-box;
+    }
+    #ui-character-status .ui-character-overlay #player-mana-fill{
+      background-color: transparent;
+      height:100%;
+      border-width: 0 2px 0 2px;
+      border-style: solid;
+      border-image: url('assets/ui-v1/ui-bar-mana.png') 0 2 0 2 fill / 0 2px 0 2px / 0 stretch;
+      box-sizing: border-box;
+    }
+    /* Nudge health/mana fills vertically: health down 1px, mana up 2px */
+    #ui-character-status .ui-character-overlay #player-health-fill{ position: relative; top: -3px; }
+    #ui-character-status .ui-character-overlay #player-mana-fill{ position: relative; top: -1px; }
+    /* Overlay-specific bar sizing: less wide, taller */
+    #ui-character-status .ui-character-overlay .overlay-bar{ flex: 0 0 auto; width: 218px; height: 16px; border-radius: 4px; overflow: hidden; }
+    /* Center bar text on top of the bar */
+    #ui-character-status .ui-character-overlay .overlay-bar{ position: relative; }
+    #ui-character-status .ui-character-overlay .bar-text{ position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size:11px; color:#ffffff; text-shadow:0 1px 0 rgba(0,0,0,0.8); pointer-events: none; }
+    /* hide small realm badge in the compact overlay (was showing as a green dot) */
+    #ui-character-status .ui-character-overlay .status-top .realm-badge{ display:none; }
 
     /* Unified HUD button styles */
     .ui-hud-btn{
