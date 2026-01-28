@@ -2,7 +2,7 @@
 
 A fully-featured browser-based MMORPG built on the nostalgic Old World map from Regnum Online (now Champions of Regnum). This project combines an interactive Leaflet-based map viewer with a complete RPG backend featuring authentication, character progression, combat, inventory management, and real-time multiplayer functionality.
 
-![Regnum Map](https://github.com/CoR-Forum/RegnumMap-Nostalgia/blob/main/map.png?raw=true)
+![Regnum Map](https://github.com/CoR-Forum/RegnumMap-Nostalgia/blob/main/screenshot-1.png?raw=true)
 
 ## 🎮 Features
 
