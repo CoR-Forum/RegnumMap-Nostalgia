@@ -1546,8 +1546,6 @@
       document.getElementById('inventory-items').style.display = 'block';
       footer.style.display = 'flex';
 
-      const defaultItemIcon = 'item-default.png';
-
       // Calculate total gold
       let totalGold = 0;
 
@@ -1561,13 +1559,14 @@
         const itemDiv = document.createElement('div');
         itemDiv.className = 'inventory-item';
 
-        const iconName = item.iconName || item.icon_name || defaultItemIcon;
-        const iconSrc = `assets/v1/items/${iconName || defaultItemIcon}`;
+        const iconName = item.iconName || item.icon_name;
+        const iconSrc = iconName ? `assets/v1/items/${iconName}` : '';
+        const iconHtml = iconSrc ? `<img src="${iconSrc}" alt="${item.itemName}">` : '';
 
         const rarityClass = (item.rarity || 'common');
 
         itemDiv.innerHTML = `
-          <div class="item-icon"><img src="${iconSrc}" alt="${item.itemName}"></div>
+          <div class="item-icon">${iconHtml}</div>
           <div class="item-name ${rarityClass}">${item.itemName}${typeof item.level !== 'undefined' ? ` <span class="item-level">Lv ${item.level}</span>` : ''}</div>
           ${item.quantity > 1 ? `<div class="item-quantity">×${item.quantity}</div>` : ''}
         `;
@@ -1653,9 +1652,8 @@
     const tooltip = document.createElement('div');
     tooltip.className = 'item-tooltip';
 
-      const defaultItemIcon = 'item-default.png';
-      const tooltipIconName = item.iconName || item.icon_name || defaultItemIcon;
-      const tooltipIconSrc = `assets/v1/items/${tooltipIconName || defaultItemIcon}`;
+      const tooltipIconName = item.iconName || item.icon_name;
+      const tooltipIconSrc = tooltipIconName ? `assets/v1/items/${tooltipIconName}` : '';
       
       // Format stats
       let statsHtml = '';
@@ -1670,7 +1668,7 @@
 
       tooltip.innerHTML = `
         <div class="tooltip-header">
-          <div class="tooltip-icon"><img src="${tooltipIconSrc}" alt="${item.itemName}"></div>
+          <div class="tooltip-icon">${tooltipIconSrc ? `<img src="${tooltipIconSrc}" alt="${item.itemName}">` : ''}</div>
           <div class="tooltip-title">
             <div class="tooltip-name ${rarityClass}">${item.itemName} ${typeof item.level !== 'undefined' ? `<span class="tooltip-level">Lv ${item.level}</span>` : ''}</div>
           </div>
@@ -1703,9 +1701,8 @@
 
     // Equipment rendering and drag/drop handlers
     function getEquipIconSrc(item){
-      const defaultItemIcon = 'item-default.png';
-      const iconName = item.iconName || item.icon_name || defaultItemIcon;
-      return `assets/v1/items/${iconName || defaultItemIcon}`;
+      const iconName = item.iconName || item.icon_name;
+      return iconName ? `assets/v1/items/${iconName}` : '';
     }
 
     // Friendly label for item type + equipment slot
@@ -1747,7 +1744,7 @@
           if(info && info.inventoryId){
             const it = info.item || {};
             const iconSrc = getEquipIconSrc(it || {});
-            target.innerHTML = `<div class="slot-icon"><img src="${iconSrc}" alt="${it.name || it.itemName || 'Item'}"></div>`;
+            target.innerHTML = iconSrc ? `<div class="slot-icon"><img src="${iconSrc}" alt="${it.name || it.itemName || 'Item'}"></div>` : '';
             target.dataset.inventoryId = info.inventoryId;
             // Tooltip
             target.addEventListener('mouseenter', (e)=>{
