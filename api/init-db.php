@@ -39,11 +39,18 @@ try {
             max_health INTEGER NOT NULL DEFAULT 600,
             mana INTEGER NOT NULL DEFAULT 200,
             max_mana INTEGER NOT NULL DEFAULT 200,
+            xp INTEGER NOT NULL DEFAULT 0,
+            intelligence INTEGER NOT NULL DEFAULT 20,
+            dexterity INTEGER NOT NULL DEFAULT 20,
+            concentration INTEGER NOT NULL DEFAULT 20,
+            strength INTEGER NOT NULL DEFAULT 20,
+            constitution INTEGER NOT NULL DEFAULT 20,
             last_active INTEGER NOT NULL
         )
     '); 
     $db->exec('CREATE INDEX IF NOT EXISTS idx_players_last_active ON players(last_active)');
     $db->exec('CREATE INDEX IF NOT EXISTS idx_players_realm ON players(realm)');
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_players_xp ON players(xp)');
 
     // Create territories table (forts and castles)
     $db->exec('
@@ -116,6 +123,7 @@ try {
 
     $db->exec('CREATE INDEX IF NOT EXISTS idx_inventory_user_id ON inventory(user_id)');
     $db->exec('CREATE INDEX IF NOT EXISTS idx_inventory_item_id ON inventory(item_id)');
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_inventory_user_item ON inventory(user_id, item_id)');
 
     // Create equipment table (player equipment slots)
     $db->exec('
@@ -310,7 +318,7 @@ try {
     echo "Database location: " . DB_PATH . "\n";
     echo "\nTables created:\n";
     echo "  - sessions (session_id, user_id, username, realm, created_at, expires_at, last_activity, fingerprint)\n";
-    echo "  - players (user_id, username, realm, x, y, health, max_health, mana, max_mana, last_active)\n";
+    echo "  - players (user_id, username, realm, x, y, health, max_health, mana, max_mana, xp, intelligence, dexterity, concentration, strength, constitution, last_active)\n";
     echo "  - territories (territory_id, realm, name, type, health, x, y, owner_realm, owner_players, contested, contested_since)\n";
     echo "  - superbosses (boss_id, name, health, max_health, x, y, last_attacked, respawn_time)\n";
     echo "  - items (item_id, name, type, description, stats, rarity, stackable, equipment_slot)\n";

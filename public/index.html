@@ -802,6 +802,17 @@
         </div>
       </div>
       <div class="player-coords" id="player-coords">Position: 0, 0</div>
+      <div style="margin-top:6px; font-size: 12px; color: #e0e0e0; display:flex; gap:8px; align-items:center;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="width:45px; font-size:11px; color:#e0e0e0;">Level:</span>
+          <div id="player-level" style="font-weight:600; color: #ffd700;">1</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; flex:1;">
+          <span style="width:30px; font-size:11px; color:#e0e0e0;">XP:</span>
+          <div id="player-xp-text" style="font-size:11px; color:#e0e0e0;">0</div>
+          <div id="player-xp-to-next" style="font-size:11px; color:#a0a0a0; margin-left:6px;">Next: 0</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1542,6 +1553,13 @@
 
       usernameEl.textContent = gameState.username;
       realmBadge.className = `realm-badge ${gameState.realm}`;
+      // populate level/xp display if present
+      const lvlEl = document.getElementById('player-level');
+      const xpText = document.getElementById('player-xp-text');
+      const xpNext = document.getElementById('player-xp-to-next');
+      if (lvlEl) lvlEl.textContent = gameState.level || 1;
+      if (xpText) xpText.textContent = `${gameState.xp || 0} XP`;
+      if (xpNext) xpNext.textContent = `Next: ${gameState.xpToNext || 0}`;
       panel.classList.add('visible');
     }
 
@@ -1598,6 +1616,11 @@
         gameState.maxHealth = data.maxHealth;
         gameState.mana = data.mana;
         gameState.maxMana = data.maxMana;
+        // XP / level / stats
+        gameState.xp = typeof data.xp !== 'undefined' ? data.xp : 0;
+        gameState.level = typeof data.level !== 'undefined' ? data.level : 1;
+        gameState.xpToNext = typeof data.xpToNext !== 'undefined' ? data.xpToNext : 0;
+        gameState.stats = data.stats || { intelligence:20, dexterity:20, concentration:20, strength:20, constitution:20 };
 
         hideModal();
         showPlayerInfo();
@@ -1947,6 +1970,13 @@
           gameState.maxHealth = posData.maxHealth;
           gameState.mana = posData.mana;
           gameState.maxMana = posData.maxMana;
+          // xp/level/stats
+          gameState.xp = typeof posData.xp !== 'undefined' ? posData.xp : (gameState.xp || 0);
+          gameState.level = typeof posData.level !== 'undefined' ? posData.level : (gameState.level || 1);
+          gameState.xpToNext = typeof posData.xpToNext !== 'undefined' ? posData.xpToNext : (gameState.xpToNext || 0);
+          gameState.stats = posData.stats || gameState.stats || { intelligence:20, dexterity:20, concentration:20, strength:20, constitution:20 };
+          // update info panel values
+          try { showPlayerInfo(); } catch (e) {}
           updatePlayerStats();
 
           // Update local player position and marker so UI reacts to server-driven walking
