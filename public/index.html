@@ -1176,7 +1176,7 @@
         ...options.headers
       };
 
-      if (gameState.sessionToken && !options.skipAuth) {
+      if (gameState && gameState.sessionToken && !options.skipAuth) {
         headers['X-Session-Token'] = gameState.sessionToken;
       }
 
@@ -1953,10 +1953,9 @@
             try {
               if (typeof map !== 'undefined' && map && typeof map.invalidateSize === 'function') {
                 map.invalidateSize();
-                if (gameState && gameState.position) {
-                  const latLng = [totalH - gameState.position.y, gameState.position.x];
-                  try { map.setView(latLng, map.getZoom()); } catch(e){}
-                }
+                // Center on middle of map
+                const centerLatLng = [totalH / 2, totalW / 2];
+                try { map.setView(centerLatLng, -2); } catch(e){}
               }
             } catch (e) {}
           }, 100);
@@ -2044,7 +2043,9 @@
         if (typeof gameState.playerMarker.setZIndexOffset === 'function') gameState.playerMarker.setZIndexOffset(1000);
         if (typeof gameState.playerMarker.bringToFront === 'function') gameState.playerMarker.bringToFront();
       } catch (e) {}
-      map.setView(latLng, map.getZoom());
+      // Center on middle of map
+      const centerLatLng = [totalH / 2, totalW / 2];
+      map.setView(centerLatLng, -2);
     }
 
     // Context menu + right-click move support
@@ -3054,7 +3055,7 @@
         try{
           sbSend.disabled = true;
           const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-          if(gameState.sessionToken){ headers['X-Session-Token'] = gameState.sessionToken; }
+          if(gameState && gameState.sessionToken){ headers['X-Session-Token'] = gameState.sessionToken; }
           const res = await fetch('/api/shoutbox', { method: 'POST', body: form, headers, credentials: 'same-origin' });
           const data = await res.json();
           if(data && data.success){ sbMessage.value = ''; fetchMessages(); }
