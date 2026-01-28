@@ -155,6 +155,8 @@ if ($path === '/login' && $requestMethod === 'POST') {
     handleGetPaths();
 } elseif ($path === '/paths/get' && $requestMethod === 'GET') {
     handleGetPath();
+} elseif ($path === '/regions' && $requestMethod === 'GET') {
+    handleGetRegions();
 } elseif ($path === '/player/move' && $requestMethod === 'POST') {
     handleStartMove();
 } else {
@@ -525,6 +527,50 @@ function handleGetPath() {
 }
 
 /* ================================================================
+    GET REGIONS (for drawing on client maps)
+    Loads regions from `regions.json` and returns normalized coordinates
+================================================================ */
+function handleGetRegions() {
+    $session = validateSession();
+
+    $regionsFile = __DIR__ . '/regions.json';
+    if (!is_readable($regionsFile)) {
+        respondSuccess(['regions' => []]);
+    }
+
+    $json = file_get_contents($regionsFile);
+    $data = json_decode($json, true);
+    if (!is_array($data)) $data = [];
+
+    $result = [];
+    foreach ($data as $r) {
+        $coords = $r['coordinates'] ?? $r['positions'] ?? $r['points'] ?? [];
+        $norm = [];
+        foreach ($coords as $pt) {
+            if (is_array($pt) && array_values($pt) === $pt) {
+                $x = (int)$pt[0]; $y = (int)$pt[1];
+            } else {
+                $x = isset($pt['x']) ? (int)$pt['x'] : (int)($pt[0] ?? 0);
+                $y = isset($pt['y']) ? (int)$pt['y'] : (int)($pt[1] ?? 0);
+            }
+            $norm[] = [$x, $y];
+        }
+
+        $result[] = [
+            'regionId' => $r['id'] ?? $r['regionId'] ?? null,
+            'name' => $r['name'] ?? null,
+            'type' => $r['type'] ?? null,
+            'coordinates' => $norm,
+            'properties' => isset($r['properties']) ? $r['properties'] : (isset($r['props']) ? $r['props'] : []),
+            'owner' => $r['owner'] ?? $r['ownerRealm'] ?? null,
+            'walkable' => isset($r['walkable']) ? (bool)$r['walkable'] : (isset($r['properties']['walkable']) ? (bool)$r['properties']['walkable'] : true)
+        ];
+    }
+
+    respondSuccess(['regions' => $result]);
+}
+
+/* ================================================================
     START MOVE (pathfinding + create walker)
 ================================================================ */
 function handleStartMove() {
@@ -534,6 +580,53 @@ function handleStartMove() {
     $targetX = isset($_POST['x']) ? (int)$_POST['x'] : null;
     $targetY = isset($_POST['y']) ? (int)$_POST['y'] : null;
     if ($targetX === null || $targetY === null) respondError('x and y are required');
+
+    // Server-side: enforce region walk permissions (prevent clients from bypassing)
+    try {
+        $regionsFile = __DIR__ . '/regions.json';
+        $regionsExist = false;
+        $matched = false;
+        if (is_readable($regionsFile)) {
+            $rjson = file_get_contents($regionsFile);
+            $rdata = json_decode($rjson, true);
+            if (is_array($rdata) && count($rdata) > 0) {
+                $regionsExist = true;
+                foreach ($rdata as $r) {
+                    $coords = $r['coordinates'] ?? $r['positions'] ?? $r['points'] ?? [];
+                    $poly = [];
+                    foreach ($coords as $pt) {
+                        if (is_array($pt) && array_values($pt) === $pt) {
+                            $px = (int)$pt[0]; $py = (int)$pt[1];
+                        } else {
+                            $px = isset($pt['x']) ? (int)$pt['x'] : (int)($pt[0] ?? 0);
+                            $py = isset($pt['y']) ? (int)$pt['y'] : (int)($pt[1] ?? 0);
+                        }
+                        $poly[] = [$px, $py];
+                    }
+                    if (count($poly) === 0) continue;
+                    if (pointInPolygonPHP($targetX, $targetY, $poly)) {
+                        $matched = true;
+                        $rtype = $r['type'] ?? null;
+                        $rowner = $r['owner'] ?? $r['ownerRealm'] ?? null;
+                        $rwalkable = isset($r['walkable']) ? (bool)$r['walkable'] : (isset($r['properties']['walkable']) ? (bool)$r['properties']['walkable'] : true);
+                        $ownerMatches = ($rowner === null) ? true : ((string)$rowner === (string)$session['realm']);
+                        if ($rtype === 'warzone') {
+                            // allowed
+                            break;
+                        }
+                        if (!($rwalkable && $ownerMatches)) {
+                            respondError('Cannot walk to that region.', 403);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        // If regions exist and the target didn't match any region, disallow walking outside regions
+        if ($regionsExist && !$matched) {
+            respondError('You cannot swim.', 403);
+        }
+    } catch (Exception $e) { /* ignore and continue defensively */ }
 
     // load paths
     $pathsFile = __DIR__ . '/paths.json';
@@ -660,6 +753,21 @@ function dijkstra($adj, $start, $goal){
     if ($dist[$goal]===INF) return null;
     $S = []; $u = $goal; while ($u!==null){ array_unshift($S,$u); $u = $prev[$u]; }
     return $S;
+}
+
+// Point-in-polygon check (ray casting) for integer raster coords
+function pointInPolygonPHP($x, $y, $polygon) {
+    $inside = false;
+    $n = count($polygon);
+    if ($n < 3) return false;
+    $j = $n - 1;
+    for ($i = 0; $i < $n; $j = $i++) {
+        $xi = $polygon[$i][0]; $yi = $polygon[$i][1];
+        $xj = $polygon[$j][0]; $yj = $polygon[$j][1];
+        $intersect = ((($yi > $y) != ($yj > $y)) && ($x < ($xj - $xi) * ($y - $yi) / ($yj - $yi + 0.0) + $xi));
+        if ($intersect) $inside = !$inside;
+    }
+    return $inside;
 }
 
 /* ================================================================

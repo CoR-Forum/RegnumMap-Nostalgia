@@ -885,6 +885,67 @@
         });
       }
 
+      // Point-in-polygon (ray casting) for raster coords
+      function pointInPolygon(x, y, polygon) {
+        let inside = false;
+        for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+          const xi = polygon[i][0], yi = polygon[i][1];
+          const xj = polygon[j][0], yj = polygon[j][1];
+          const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi + 0.0) + xi);
+          if (intersect) inside = !inside;
+        }
+        return inside;
+      }
+
+      // Create a small walking indicator element that follows the cursor when allowed
+      (function createWalkIndicator(){
+        const css = `
+          .walk-indicator{position:fixed;pointer-events:none;z-index:99999;width:24px;height:24px;opacity:0;transition:opacity 120ms linear;will-change:transform,left,top;}
+          .walk-indicator.show{opacity:1;animation:walk-bounce 600ms steps(2) infinite;}
+          .walk-indicator img{width:24px;height:24px;display:block}
+          @keyframes walk-bounce{0%{transform:translateY(0);}50%{transform:translateY(-4px);}100%{transform:translateY(0);}}
+        `;
+        const style = document.createElement('style'); style.appendChild(document.createTextNode(css)); document.head.appendChild(style);
+        const el = document.createElement('div'); el.id = 'walk-indicator'; el.className = 'walk-indicator';
+        // try to load a GIF at assets/icons/walk.gif; fallback to emoji if missing
+        const img = document.createElement('img'); img.src = 'assets/icons/walk.gif';
+        img.alt = 'walk';
+        img.onerror = function(){ el.textContent = '🚶'; };
+        img.onload = function(){ /* image loaded */ };
+        el.appendChild(img);
+        document.body.appendChild(el);
+      })();
+
+      // Create a tiny log window in the bottom-left for visible messages
+      (function createLogWindow(){
+        const css = `
+          .game-log-window{position:fixed;left:8px;bottom:8px;width:280px;max-height:140px;overflow:auto;background:rgba(0,0,0,0.75);color:#fff;padding:8px;border-radius:6px;font-size:12px;z-index:200000;box-shadow:0 4px 16px rgba(0,0,0,0.6);}
+          .game-log-entry{margin-bottom:6px;padding:6px;border-radius:4px;background:rgba(255,255,255,0.02);}
+          .game-log-entry.error{background:rgba(255,64,64,0.08);color:#ffdcdc}
+          .game-log-ts{display:block;font-size:11px;opacity:0.7;margin-bottom:3px}
+        `;
+        const style = document.createElement('style'); style.appendChild(document.createTextNode(css)); document.head.appendChild(style);
+        const win = document.createElement('div'); win.id = 'game-log-window'; win.className = 'game-log-window'; win.style.display = 'none';
+        document.body.appendChild(win);
+
+        window.addLogMessage = function(message, level = 'info') {
+          try {
+            const w = document.getElementById('game-log-window'); if (!w) return;
+            const entry = document.createElement('div'); entry.className = 'game-log-entry ' + (level === 'error' ? 'error' : '');
+            const ts = document.createElement('span'); ts.className = 'game-log-ts'; ts.textContent = new Date().toLocaleTimeString();
+            const txt = document.createElement('div'); txt.textContent = message;
+            entry.appendChild(ts); entry.appendChild(txt);
+            w.appendChild(entry);
+            w.style.display = 'block';
+            // keep scroll at bottom and limit entries
+            w.scrollTop = w.scrollHeight;
+            const entries = w.querySelectorAll('.game-log-entry'); if (entries.length > 20) entries[0].remove();
+            // auto-hide after 6s
+            setTimeout(() => { try { if (w) { w.removeChild(entry); if (w.children.length === 0) w.style.display = 'none'; } } catch(e){} }, 6000);
+          } catch (e) { console.error('addLogMessage failed', e); }
+        };
+      })();
+
       // Add each tile as an ImageOverlay positioned by scaled pixel bounds
       // Note: flip vertical ordering so rows 1 and 3 are swapped
       for(let r=1; r<=rows; r++){
@@ -965,9 +1026,106 @@
             const displayY = Math.max(1, Math.min(totalH, Math.floor(totalH - mapY) + 1));
             coordsEl.style.display = 'block';
             coordsEl.textContent = `${displayX}x${displayY}`;
+
+            // region hover detection - compute raster coords of mouse
+            try {
+              const rx = Math.round(mapX);
+              const ry = Math.round(totalH - mapY);
+              let allowed = false;
+              let foundRegion = null;
+              const regions = gameState.regionsData || [];
+
+              // If regions not yet loaded, fetch them once (non-blocking)
+              if ((!regions || regions.length === 0) && !gameState._regionsLoading) {
+                try {
+                  gameState._regionsLoading = true;
+                  apiCall('/regions').then(d => {
+                    try { gameState.regionsData = d.regions || []; } catch(e){}
+                    gameState._regionsLoading = false;
+                  }).catch(() => { gameState._regionsLoading = false; });
+                } catch (e) { gameState._regionsLoading = false; }
+              }
+
+              for (const r of (gameState.regionsData || [])) {
+                const poly = r.coordinates || r.positions || [];
+                if (!poly || poly.length === 0) continue;
+                if (pointInPolygon(rx, ry, poly)) {
+                  foundRegion = r;
+                  const ownerMatches = (r.owner === null || typeof r.owner === 'undefined') ? true : (String(r.owner) === String(gameState.realm));
+                  const walkable = (typeof r.walkable !== 'undefined') ? !!r.walkable : true;
+                  const isWarzone = (r.type === 'warzone');
+                  // allow if warzone OR walkable and owned by player's realm
+                  allowed = isWarzone || (walkable && ownerMatches);
+                  break;
+                }
+              }
+
+              const indicator = document.getElementById('walk-indicator');
+              if (allowed) {
+                // show walking indicator next to native cursor
+                if (indicator) {
+                  // compute screen coordinates for the mouse: prefer originalEvent, else convert latlng
+                  let cx = null, cy = null;
+                  if (e && e.originalEvent && typeof e.originalEvent.clientX === 'number') {
+                    cx = e.originalEvent.clientX; cy = e.originalEvent.clientY;
+                  } else if (e && typeof map.latLngToContainerPoint === 'function') {
+                    try {
+                      const cp = map.latLngToContainerPoint(e.latlng);
+                      const rect = map.getContainer().getBoundingClientRect();
+                      cx = rect.left + cp.x; cy = rect.top + cp.y;
+                    } catch (err) {}
+                  }
+                  if (cx !== null && cy !== null) {
+                    indicator.style.left = (cx + 16) + 'px';
+                    indicator.style.top = (cy + 16) + 'px';
+                  }
+                  indicator.classList.add('show');
+                }
+              } else {
+                if (indicator) indicator.classList.remove('show');
+              }
+            } catch (err) { console.debug('region hover check error', err); }
           });
-          map.on('mouseout', () => { coordsEl.style.display = 'none'; });
+          map.on('mouseout', () => { coordsEl.style.display = 'none'; const indicator = document.getElementById('walk-indicator'); if (indicator) indicator.classList.remove('show'); });
         }
+        
+        // Show regions when fully zoomed out (min zoom). Load regions once and remove when zoomed in.
+        map.on('zoomend', async () => {
+          try {
+            const currentZoom = map.getZoom();
+            if (typeof map.getMinZoom === 'function' && currentZoom === map.getMinZoom()) {
+              // only load once
+              if (!gameState.regionsLayer) {
+                try {
+                  const data = await apiCall('/regions');
+                  const regions = data.regions || [];
+                  // cache regions for hover/walk checks
+                  gameState.regionsData = regions;
+                  const layers = [];
+                  for (const r of regions) {
+                    const pos = r.coordinates || r.positions || [];
+                    const latlngs = positionsToLatLngs(pos);
+                    if (!latlngs || latlngs.length === 0) continue;
+                    const fill = (r.properties && r.properties.fillColor) ? r.properties.fillColor : (r.type === 'danger' ? '#ff5555' : '#55ff55');
+                    const stroke = (r.properties && r.properties.color) ? r.properties.color : '#228822';
+                    // non-interactive polygon for zoomed-out overview (no tooltips)
+                    const poly = L.polygon(latlngs, { color: stroke, weight: 2, opacity: 0.9, fillColor: fill, fillOpacity: 0.25, interactive: false });
+                    layers.push(poly);
+                  }
+                  if (layers.length > 0) {
+                    gameState.regionsLayer = L.layerGroup(layers).addTo(map);
+                  }
+                } catch (err) {
+                  console.error('Failed to load regions for zoomed-out view:', err);
+                }
+              }
+            } else {
+              if (gameState.regionsLayer) { try { map.removeLayer(gameState.regionsLayer); } catch (e) {} gameState.regionsLayer = null; }
+            }
+          } catch (e) { console.error('zoomend handler error', e); }
+        });
+        // Ensure the handler runs immediately (map may start at min zoom)
+        try { map.fire('zoomend'); } catch (e) { console.error('failed to trigger initial zoom handler', e); }
       }).catch(err => console.error('Failed to load markers.json', err));
     };
 
@@ -1002,8 +1160,10 @@
       otherPlayers: new Map(),
       territories: new Map(),
       superbosses: new Map(),
-      pathsLayer: null,
-      showPaths: false,
+    pathsLayer: null,
+    regionsLayer: null,
+    showRegions: false,
+    showPaths: false,
       buildPathPoints: [],
       buildPathPolyline: null,
       pollInterval: null,
@@ -1027,15 +1187,24 @@
         headers
       });
 
-      // Surface explicit server error for 502 responses
-      if (response.status === 502) {
-        throw new Error('Server error');
+      const status = response.status;
+      let data = null;
+      try { data = await response.json(); } catch (e) { data = null; }
+
+      if (!response.ok) {
+        const err = new Error((data && data.error) ? data.error : 'API call failed');
+        err.status = status;
+        err.body = data;
+        throw err;
       }
 
-      const data = await response.json();
-      if (!data.success) {
-        throw new Error(data.error || 'API call failed');
+      if (data && data.success === false) {
+        const err = new Error(data.error || 'API call failed');
+        err.status = status;
+        err.body = data;
+        throw err;
       }
+
       return data;
     }
 
@@ -1628,6 +1797,7 @@
     // Context menu + right-click move support
     let __lastContextLatLng = null;
     let __mapContextMenuEl = null;
+    let __lastContextAllowed = null;
 
     function createMapContextMenu() {
       __mapContextMenuEl = document.createElement('div');
@@ -1647,9 +1817,15 @@
         ev.stopPropagation();
         if (!__lastContextLatLng) return hideMapContextMenu();
         try {
-          console.debug('ContextMenu: Walk here clicked', __lastContextLatLng);
+          console.log('ContextMenu: Walk here clicked', __lastContextLatLng);
           // Defensive copy of latlng
           const ll = (typeof L !== 'undefined' && L && L.latLng) ? L.latLng(__lastContextLatLng.lat, __lastContextLatLng.lng) : __lastContextLatLng;
+          // Ensure permission check (async) before initiating walk
+          try {
+            const allowed = await isLatLngWalkAllowedAsync(ll);
+            if (!allowed) { alert('Cannot walk to that region.'); hideMapContextMenu(); return; }
+          } catch (e) { console.error('Walk permission check failed', e); alert('Cannot walk to that region.'); hideMapContextMenu(); return; }
+
           await performWalkAtLatLng(ll);
         } catch (err) {
           console.error('performWalkAtLatLng failed', err);
@@ -1714,12 +1890,88 @@
       __mapContextMenuEl.style.left = (rect.left + containerPoint.x) + 'px';
       __mapContextMenuEl.style.top = (rect.top + containerPoint.y) + 'px';
       __mapContextMenuEl.style.display = 'block';
+      // show/hide Walk Here item depending on whether the location is walkable
+      try {
+        const walkItem = __mapContextMenuEl.querySelector('#map-walk-here');
+        if (walkItem) {
+          if (typeof __lastContextAllowed === 'boolean') {
+            // permission was precomputed by the contextmenu handler
+            walkItem.style.display = __lastContextAllowed ? 'block' : 'none';
+            walkItem.title = __lastContextAllowed ? '' : 'Cannot walk to that region';
+            __lastContextAllowed = null;
+          } else {
+            // fallback: hide while checking then async update
+            walkItem.style.display = 'none';
+            walkItem.title = 'Checking...';
+            (async () => {
+              try {
+                const allowed = await isLatLngWalkAllowedAsync(latlng);
+                if (allowed) {
+                  walkItem.style.display = 'block';
+                  walkItem.title = '';
+                } else {
+                  walkItem.style.display = 'none';
+                  walkItem.title = 'Cannot walk to that region';
+                }
+              } catch (e) {
+                walkItem.style.display = 'none';
+                walkItem.title = 'Cannot walk to that region';
+              }
+            })();
+          }
+        }
+      } catch (e) { /* ignore */ }
     }
 
     function hideMapContextMenu() {
       if (!__mapContextMenuEl) return;
       __mapContextMenuEl.style.display = 'none';
       __lastContextLatLng = null;
+    }
+
+    // Return true if the given Leaflet latlng is allowed as a walking destination
+    function isLatLngWalkAllowed(latlng) {
+      try {
+        const x = Math.round(latlng.lng);
+        const y = Math.round(totalH - latlng.lat);
+        console.log('isLatLngWalkAllowed: checking', {x,y, realm: gameState.realm});
+        if (x < 0 || x > 6144 || y < 0 || y > 6144) return false;
+        const regions = gameState.regionsData || [];
+        console.log('isLatLngWalkAllowed: regions loaded', (regions||[]).length);
+        for (const r of regions) {
+          const poly = r.coordinates || r.positions || [];
+          if (!poly || poly.length === 0) continue;
+          if (pointInPolygon(x, y, poly)) {
+            console.log('isLatLngWalkAllowed: inside region', r.regionId || r.id || r.name, r);
+            const ownerMatches = (r.owner === null || typeof r.owner === 'undefined') ? true : (String(r.owner) === String(gameState.realm));
+            const walkable = (typeof r.walkable !== 'undefined') ? !!r.walkable : true;
+            const isWarzone = (r.type === 'warzone');
+            return isWarzone || (walkable && ownerMatches);
+          }
+        }
+        return true;
+      } catch (e) { console.debug('isLatLngWalkAllowed error', e); return true; }
+    }
+
+    // Async variant: ensures region data is loaded before evaluating permission.
+    async function isLatLngWalkAllowedAsync(latlng) {
+      try {
+        // ensure regions loaded
+        if ((!gameState.regionsData || gameState.regionsData.length === 0) && !gameState._regionsLoading) {
+          try {
+            gameState._regionsLoading = true;
+            const d = await apiCall('/regions');
+            console.log('isLatLngWalkAllowedAsync: fetched regions', (d && d.regions && d.regions.length) || 0);
+            gameState.regionsData = d.regions || [];
+          } catch (e) {
+            console.debug('Failed to load regions for permission check', e);
+            gameState._regionsLoading = false;
+            return false; // conservative: block walking if we can't confirm
+          }
+          gameState._regionsLoading = false;
+        }
+        return isLatLngWalkAllowed(latlng);
+      } catch (e) { console.debug('isLatLngWalkAllowedAsync error', e); return false; }
     }
 
     async function performMoveAtLatLng(latlng) {
@@ -1754,9 +2006,15 @@
       if (x < 0 || x > 6144 || y < 0 || y > 6144) return;
 
       try {
+        console.log('performWalkAtLatLng: requested', {x,y});
         const formData = new URLSearchParams();
         formData.append('x', x);
         formData.append('y', y);
+        // Prevent walking into non-walkable or foreign-owned regions
+        try {
+          const allowed = await isLatLngWalkAllowedAsync(latlng);
+          if (!allowed) { alert('Cannot walk to that region.'); return; }
+        } catch (e) { console.debug('region check before walk failed', e); alert('Cannot walk to that region.'); return; }
 
         const data = await apiCall('/player/move', {
           method: 'POST',
@@ -1792,6 +2050,13 @@
 
         console.debug('performWalkAtLatLng: started', data);
       } catch (error) {
+        try {
+          if (error && (error.status === 403 || String(error.message).toLowerCase().includes('cannot walk to'))) {
+            window.addLogMessage(error.message || 'Cannot walk to that region.', 'error');
+          } else if (error && error.message) {
+            window.addLogMessage('Failed to start walking: ' + error.message, 'error');
+          }
+        } catch (e) { /* ignore logging failures */ }
         console.error('Failed to start walking:', error);
       }
     }
@@ -1826,9 +2091,13 @@
 
     function enableClickToMove() {
       // Use right-click (contextmenu) to open a small menu with actions
-      map.on('contextmenu', (e) => {
+      map.on('contextmenu', async (e) => {
         // Prevent the browser default context menu
         if (e.originalEvent && typeof e.originalEvent.preventDefault === 'function') e.originalEvent.preventDefault();
+        try {
+          // Compute permission before showing menu to avoid race conditions
+          __lastContextAllowed = await isLatLngWalkAllowedAsync(e.latlng);
+        } catch (err) { __lastContextAllowed = false; }
         showMapContextMenuAt(e.containerPoint, e.latlng);
       });
 

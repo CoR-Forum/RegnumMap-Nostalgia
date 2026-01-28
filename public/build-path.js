@@ -121,6 +121,8 @@
 
       const data = await apiCall('/regions');
       const regions = data.regions || [];
+      // cache regions globally for hover/walk checks
+      try { if (typeof gameState !== 'undefined') gameState.regionsData = regions; } catch(e){}
 
       const layers = [];
       for (const r of regions) {
