@@ -69,7 +69,7 @@ touch /var/log/territory.log || true
 echo "Starting territory update cron (every 15 seconds)..."
 (while true; do
     /usr/local/bin/php /var/www/api/cron/update-territories.php >> /var/log/territory.log 2>&1
-    sleep 15
+    sleep 60
 done) &
 echo "Territory update cron started; logs: /var/log/territory.log"
 
