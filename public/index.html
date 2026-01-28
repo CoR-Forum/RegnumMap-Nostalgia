@@ -26,58 +26,59 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
   <style>
-    html,body,#map{height:100%;margin:0;padding:0}
-    /* Background image shown behind tiles when panning outside bounds */
-    #map{width:100vw;height:100vh; background: url('assets/background.jpg') center center / cover no-repeat}
+    /* Prevent the page from scrolling; map handles panning */
+    html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+    /* Map fills the viewport */
+    #map { width: 100vw; height: 100vh; margin: 0; padding: 0; background: url('assets/background.jpg') center center / cover no-repeat; }
       #coords {
-        position: absolute;
-        right: 12px;
-        top: 12px;
-        background: rgba(0,0,0,0.65);
-        color: #fff;
-        padding: 6px 10px;
-        border-radius: 6px;
-        font-size: 12px;
-        z-index: 1100;
-        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-        pointer-events: none;
-        display: none;
-      }
+        .ui-hud-btn{
+          width: 39px;
+          height: 39px;
+          background-size: contain;
+          background-repeat: no-repeat;
+          background-position: center center;
+          border: none;
+          padding: 0;
+          margin: 0;
+          cursor: pointer;
+          pointer-events: auto; /* allow clicks */
+          z-index: 20002;
+          background-color: transparent;
+          flex: 0 0 auto;
+        }
 
-    /* Bottom-right author notice */
-    #attribution{
-      position: absolute;
-      right: 12px;
-      bottom: 12px;
-      background: rgba(0,0,0,0.55);
-      color: #fff;
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      z-index: 1000;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-      line-height: 1;
-    }
+        /* HUD group layout */
+        .ui-bar-right{ position: relative; }
+        .ui-hud-group{ position: absolute; right: 12px; bottom: 8px; display:flex; gap:8px; align-items:flex-end; pointer-events: auto; }
 
-    
-    #attribution a{ color: #fff; text-decoration: underline }
-    /* Top-center logo */
-    #logo{
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      top: 8px;
-      width: 200px;
-      height: auto;
-      z-index: 1000;
-      pointer-events: none;
-    }
+        /* per-action icons (base/hover/pressed) */
+        .ui-hud-btn[data-action="inventory"]{ background-image: url('assets/ui-v1/hud/ui-icon-inventory-base.png'); }
+        .ui-hud-btn[data-action="inventory"]:hover{ background-image: url('assets/ui-v1/hud/ui-icon-inventory-hover.png'); }
+        .ui-hud-btn[data-action="inventory"]:active{ background-image: url('assets/ui-v1/hud/ui-icon-inventory-pressed.png'); }
 
-    /* Header action buttons (top-right) */
-    #header-actions{
-      position: absolute;
-      right: 12px;
-      top: 8px;
+        .ui-hud-btn[data-action="character"]{ background-image: url('assets/ui-v1/hud/ui-icon-character-base.png'); }
+        .ui-hud-btn[data-action="character"]:hover{ background-image: url('assets/ui-v1/hud/ui-icon-character-hover.png'); }
+        .ui-hud-btn[data-action="character"]:active{ background-image: url('assets/ui-v1/hud/ui-icon-character-pressed.png'); }
+
+        .ui-hud-btn[data-action="actions"]{ background-image: url('assets/ui-v1/hud/ui-icon-actions-base.png'); }
+        .ui-hud-btn[data-action="actions"]:hover{ background-image: url('assets/ui-v1/hud/ui-icon-actions-hover.png'); }
+        .ui-hud-btn[data-action="actions"]:active{ background-image: url('assets/ui-v1/hud/ui-icon-actions-pressed.png'); }
+
+        .ui-hud-btn[data-action="party"]{ background-image: url('assets/ui-v1/hud/ui-icon-party-base.png'); }
+        .ui-hud-btn[data-action="party"]:hover{ background-image: url('assets/ui-v1/hud/ui-icon-party-hover.png'); }
+        .ui-hud-btn[data-action="party"]:active{ background-image: url('assets/ui-v1/hud/ui-icon-party-pressed.png'); }
+
+        .ui-hud-btn[data-action="premium"]{ background-image: url('assets/ui-v1/hud/ui-icon-premium-base.png'); }
+        .ui-hud-btn[data-action="premium"]:hover{ background-image: url('assets/ui-v1/hud/ui-icon-premium-hover.png'); }
+        .ui-hud-btn[data-action="premium"]:active{ background-image: url('assets/ui-v1/hud/ui-icon-premium-pressed.png'); }
+
+        .ui-hud-btn[data-action="quests"]{ background-image: url('assets/ui-v1/hud/ui-icon-quests-base.png'); }
+        .ui-hud-btn[data-action="quests"]:hover{ background-image: url('assets/ui-v1/hud/ui-icon-quests-hover.png'); }
+        .ui-hud-btn[data-action="quests"]:active{ background-image: url('assets/ui-v1/hud/ui-icon-quests-pressed.png'); }
+
+        .ui-hud-btn[data-action="spellbook"]{ background-image: url('assets/ui-v1/hud/ui-icon-spellbook-base.png'); }
+        .ui-hud-btn[data-action="spellbook"]:hover{ background-image: url('assets/ui-v1/hud/ui-icon-spellbook-hover.png'); }
+        .ui-hud-btn[data-action="spellbook"]:active{ background-image: url('assets/ui-v1/hud/ui-icon-spellbook-pressed.png'); }
       z-index: 1100;
       display: flex;
       gap: 8px;
@@ -315,7 +316,7 @@
       position: absolute;
       left: 8px;
       top: 8px;
-      background: #1a1a1a;
+      background: transparent;
       color: #e0e0e0;
       padding: 0;
       font-size: 11px;
@@ -323,8 +324,8 @@
       font-family: 'MS Sans Serif', Arial, sans-serif;
       min-width: 220px;
       display: none;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.8);
-      border: 1px solid #333;
+      box-shadow: none;
+      border: none;
     }
     #player-info.visible{ display: block; }
 
@@ -351,7 +352,7 @@
 
     .player-info-body{
       padding: 8px;
-      background: #1a1a1a;
+      background: transparent;
     }
 
     .player-coords{
@@ -426,7 +427,6 @@
     /* Inventory window sizing */
     #inventory-window{
       max-height: 600px;
-      overflow: hidden;
     }
     #inventory-list{
       overflow-y: auto;
@@ -435,9 +435,9 @@
     }
 
     /* Equipment Slot Styles */
-    .equipment-area{ padding: 8px; border: 2px solid #1a2538; border-radius: 3px; margin-bottom: 8px; background: rgba(0,0,0,0.12);}    
+    .equipment-area{ padding: 8px; border: 2px solid #1a2538; border-radius: 3px; margin-bottom: 8px; background: transparent;}    
     .equipment-row{ display:flex; gap:6px; justify-content: flex-start; margin-bottom:6px; }
-    .equipment-slot{ width:44px; height:44px; background: linear-gradient(135deg, #0f1419 0%, #1a1f2e 100%); border: 2px solid #2a3f5f; border-radius: 4px; display:flex; align-items:center; justify-content:center; position:relative; cursor:pointer; }
+    .equipment-slot{ width:44px; height:44px; background: transparent; border: 2px solid #2a3f5f; border-radius: 4px; display:flex; align-items:center; justify-content:center; position:relative; cursor:pointer; }
     .equipment-slot.empty{ opacity:0.45; }
     .equipment-slot .slot-icon{ font-size:22px; }
     .equipment-slot .slot-rarity-border{ inset: -2px; border-radius:4px; }
@@ -452,7 +452,7 @@
 
     .inventory-slot{
       aspect-ratio: 1;
-      background: linear-gradient(135deg, #0f1419 0%, #1a1f2e 100%);
+      background: transparent;
       border: 2px solid #2a3f5f;
       border-radius: 3px;
       display: flex;
@@ -735,15 +735,15 @@
   </div>
 
   <!-- Inventory Window -->
-  <div id="inventory-window" style="position: absolute; right: 12px; bottom: 12px; width: 304px; background: #1a1a1a; border: 1px solid #333; box-shadow: 0 4px 16px rgba(0,0,0,0.8); z-index: 1000; display: none; flex-direction: column; font-family: 'MS Sans Serif', Arial, sans-serif;">
-    <div id="inventory-header" style="padding: 3px 4px; background: linear-gradient(180deg, #000080 0%, #1084d0 100%); cursor: move; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+  <div id="inventory-window" class="ui-window" style="position: absolute; right: 12px; bottom: 12px; width: 304px; z-index: 1000; display: none; flex-direction: column; font-family: 'MS Sans Serif', Arial, sans-serif;">
+    <div id="inventory-header" class="ui-window-titlebar" style="cursor: move; display: flex; justify-content: space-between; align-items: center; user-select: none;">
       <h2 style="margin: 0; flex: 1; font-size: 11px; font-weight: 700; color: #ffffff; font-family: 'MS Sans Serif', Arial, sans-serif;">Inventory</h2>
-      <button id="inventory-close-btn" style="background: #2a2a2a; border: 1px solid #444; color: #e0e0e0; font-size: 11px; cursor: pointer; padding: 0; width: 16px; height: 14px; line-height: 1; font-family: 'MS Sans Serif', Arial, sans-serif; font-weight: 700;">X</button>
+      <button id="inventory-close-btn" class="ui-window-close-btn"></button>
     </div>
 
     <!-- equipment moved to Character window -->
 
-    <div id="inventory-list" style="padding: 8px; background: #1a1a1a;">
+    <div id="inventory-list" class="ui-window-body" style="padding: 20px;">
       <div id="inventory-loading" style="text-align: center; color: #e0e0e0; padding: 40px;">
         <div class="loading-spinner" style="margin: 0 auto 12px;"></div>
         <div style="font-size: 11px;">Loading inventory...</div>
@@ -753,7 +753,7 @@
         Your inventory is empty
       </div>
     </div>
-    <div id="inventory-footer" style="padding: 4px 8px; background: #1a1a1a; border-top: 1px solid #333; display: none;">
+    <div id="inventory-footer" class="ui-window-body" style="padding: 20px; display: none;">
       <div style="display: flex; align-items: center; gap: 4px; color: #e0e0e0; font-size: 11px;">
         <span style="font-size: 14px;">💰</span>
         <span id="inventory-gold" style="font-weight: 400;">0 Gold</span>
@@ -801,13 +801,13 @@
   <div id="coords" aria-hidden="true"></div>
   
   <!-- Character Window (equipment + stats) -->
-  <div id="character-window" style="position: absolute; left: 12px; bottom: 12px; width: 320px; background: #1a1a1a; border: 1px solid #333; box-shadow: 0 4px 16px rgba(0,0,0,0.8); z-index: 1000; display: none; flex-direction: column; font-family: 'MS Sans Serif', Arial, sans-serif;">
-    <div id="character-header" style="padding: 3px 4px; background: linear-gradient(180deg, #000080 0%, #1084d0 100%); cursor: move; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+  <div id="character-window" class="ui-window" style="position: absolute; left: 12px; bottom: 12px; width: 320px; z-index: 1000; display: none; flex-direction: column; font-family: 'MS Sans Serif', Arial, sans-serif;">
+    <div id="character-header" class="ui-window-titlebar" style="cursor: move; display: flex; justify-content: space-between; align-items: center; user-select: none;">
       <h2 style="margin: 0; flex: 1; font-size: 11px; font-weight: 700; color: #ffffff;">Character</h2>
-      <button id="character-close-btn" style="background: #2a2a2a; border: 1px solid #444; color: #e0e0e0; font-size: 11px; cursor: pointer; padding: 0; width: 16px; height: 14px; line-height: 1; font-weight: 700;">X</button>
+      <button id="character-close-btn" class="ui-window-close-btn"></button>
     </div>
 
-    <div id="character-body" style="display: flex; flex-direction: column; gap: 8px; padding: 8px;">
+    <div id="character-body" class="ui-window-body" style="padding: 10px; display: flex; flex-direction: column; gap: 8px;">
       <div>
         <div class="equipment-area">
           <div class="equipment-row" id="equipment-row-top">
@@ -859,9 +859,27 @@
     </div>
   </div>
   <div id="header-actions">
-    <button class="btn-logout" id="inventory-btn">Inventory</button>
-    <button class="btn-logout" id="character-btn">Character</button>
     <button class="btn-logout" id="logout-btn">Logout</button>
+  </div>
+  <!-- UI images overlay (rendered from public/assets/ui-v1) -->
+  <div id="ui-image-overlay" aria-hidden="true">
+    <div class="ui-bar-repeat"></div>
+    <div class="ui-bar-right">
+      <img src="assets/ui-v1/ui-bottom-right-premium.png" alt="">
+      <div class="ui-hud-group" aria-hidden="false">
+        <button id="inventory-hud-btn" class="ui-hud-btn" data-action="inventory" aria-label="Open Inventory"></button>
+        <button id="character-hud-btn" class="ui-hud-btn" data-action="character" aria-label="Open Character"></button>
+        <button id="actions-hud-btn" class="ui-hud-btn" data-action="actions" aria-label="Actions"></button>
+        <button id="party-hud-btn" class="ui-hud-btn" data-action="party" aria-label="Party"></button>
+        <button id="premium-hud-btn" class="ui-hud-btn" data-action="premium" aria-label="Premium"></button>
+        <button id="quests-hud-btn" class="ui-hud-btn" data-action="quests" aria-label="Quests"></button>
+        <button id="spellbook-hud-btn" class="ui-hud-btn" data-action="spellbook" aria-label="Spellbook"></button>
+      </div>
+    </div>
+  </div>
+  <!-- Top-right compass (non-interactive) -->
+  <div id="ui-compass" aria-hidden="true">
+    <img src="assets/ui-v1/ui-compass.png" alt="">
   </div>
   <div id="attribution" aria-label="Map author and source">
     <a href="https://github.com/CoR-Forum/RegnumMap-Nostalgia" target="_blank" rel="noopener noreferrer">GitHub</a>
@@ -1202,9 +1220,28 @@
       });
     });
 
-    // Inventory button handler
-    document.getElementById('inventory-btn').addEventListener('click', () => {
-      openInventory();
+    // Inventory button handler (legacy header button may be absent)
+    const _inventoryBtn = document.getElementById('inventory-btn');
+    if (_inventoryBtn) _inventoryBtn.addEventListener('click', () => { openInventory(); });
+
+    // Delegated handler for HUD buttons (inventory/character and future buttons)
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest && e.target.closest('.ui-hud-btn');
+      if (!btn) return;
+      const action = String(btn.dataset.action || '').trim();
+      if (!action) return;
+      try {
+        // Prefer explicit known handlers
+        if (action === 'inventory') { return openInventory(); }
+        if (action === 'character') { return openCharacter(); }
+
+        // Try to call a global open<Action>() function if available (e.g. openParty)
+        const fnName = 'open' + action.charAt(0).toUpperCase() + action.slice(1);
+        const fn = window[fnName];
+        if (typeof fn === 'function') return fn();
+
+        console.debug('No handler for HUD action', action);
+      } catch (err) { console.error('HUD button action failed', err); }
     });
 
     // Close inventory handler
@@ -1212,10 +1249,9 @@
       closeInventory();
     });
 
-    // Character button and close handler
-    document.getElementById('character-btn').addEventListener('click', () => {
-      openCharacter();
-    });
+    // Character button and close handler (header button may be absent)
+    const _characterBtn = document.getElementById('character-btn');
+    if (_characterBtn) _characterBtn.addEventListener('click', () => { openCharacter(); });
     document.getElementById('character-close-btn').addEventListener('click', () => {
       closeCharacter();
     });
@@ -2571,6 +2607,112 @@
     .info-tooltip .tooltip-title { font-weight:700; margin-bottom:6px; font-size:14px }
     .info-tooltip .tooltip-row { margin-bottom:4px }
     .info-tooltip .status-contested { color:#ffb4b4; font-weight:700 }
+    /* UI image overlay (bottom-right) */
+    #ui-image-overlay{
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 73px; /* scaled up ~30% */
+      z-index: 20000;
+      pointer-events: none;
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+    }
+    #ui-image-overlay .ui-bar-repeat{
+      flex: 1 1 auto;
+      height: 73px;
+      background-image: url('assets/ui-v1/ui-bottom-bar-left.png');
+      background-repeat: repeat-x;
+      background-position: left top;
+      background-size: auto 100%;
+    }
+    #ui-image-overlay .ui-bar-right{ flex: 0 0 auto; }
+    #ui-image-overlay .ui-bar-right img{ height: 73px; display:block; pointer-events: none; }
+    /* Top-right compass image */
+    #ui-compass{ position: fixed; top: 16px; right: 16px; z-index: 20001; pointer-events: none; }
+    #ui-compass img{ height: 166px; display:block; }
+
+    /* Unified HUD button styles */
+    .ui-hud-btn{
+      position: absolute;
+      bottom: 4px;
+      width: 38px;
+      height: 38px;
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center center;
+      border: none;
+      padding: 0;
+      margin: 0;
+      cursor: pointer;
+      pointer-events: auto; /* allow clicks */
+      z-index: 20002;
+      background-color: transparent;
+    }
+    .ui-hud-btn[data-action="spellbook"]{ right: 303px; background-image: url('assets/ui-v1/ui-icon-spellbook-base.png'); }
+    .ui-hud-btn[data-action="spellbook"]:hover{ background-image: url('assets/ui-v1/ui-icon-spellbook-hover.png'); }
+    .ui-hud-btn[data-action="spellbook"]:active{ background-image: url('assets/ui-v1/ui-icon-spellbook-pressed.png'); }
+
+    .ui-hud-btn[data-action="character"]{ right: 251px; background-image: url('assets/ui-v1/ui-icon-character-base.png'); }
+    .ui-hud-btn[data-action="character"]:hover{ background-image: url('assets/ui-v1/ui-icon-character-hover.png'); }
+    .ui-hud-btn[data-action="character"]:active{ background-image: url('assets/ui-v1/ui-icon-character-pressed.png'); }
+
+    .ui-hud-btn[data-action="inventory"]{ right: 207px; background-image: url('assets/ui-v1/ui-icon-inventory-base.png'); }
+    .ui-hud-btn[data-action="inventory"]:hover{ background-image: url('assets/ui-v1/ui-icon-inventory-hover.png'); }
+    .ui-hud-btn[data-action="inventory"]:active{ background-image: url('assets/ui-v1/ui-icon-inventory-pressed.png'); }
+
+    .ui-hud-btn[data-action="actions"]{ right: 164px; background-image: url('assets/ui-v1/ui-icon-actions-base.png'); }
+    .ui-hud-btn[data-action="actions"]:hover{ background-image: url('assets/ui-v1/ui-icon-actions-hover.png'); }
+    .ui-hud-btn[data-action="actions"]:active{ background-image: url('assets/ui-v1/ui-icon-actions-pressed.png'); }
+
+    .ui-hud-btn[data-action="party"]{ right: 123px; background-image: url('assets/ui-v1/ui-icon-party-base.png'); }
+    .ui-hud-btn[data-action="party"]:hover{ background-image: url('assets/ui-v1/ui-icon-party-hover.png'); }
+    .ui-hud-btn[data-action="party"]:active{ background-image: url('assets/ui-v1/ui-icon-party-pressed.png'); }
+
+    .ui-hud-btn[data-action="quests"]{ right: 78px; background-image: url('assets/ui-v1/ui-icon-quests-base.png'); }
+    .ui-hud-btn[data-action="quests"]:hover{ background-image: url('assets/ui-v1/ui-icon-quests-hover.png'); }
+    .ui-hud-btn[data-action="quests"]:active{ background-image: url('assets/ui-v1/ui-icon-quests-pressed.png'); }
+
+    .ui-hud-btn[data-action="premium"]{ right: 34px; background-image: url('assets/ui-v1/ui-icon-premium-base.png'); }
+    .ui-hud-btn[data-action="premium"]:hover{ background-image: url('assets/ui-v1/ui-icon-premium-hover.png'); }
+    .ui-hud-btn[data-action="premium"]:active{ background-image: url('assets/ui-v1/ui-icon-premium-pressed.png'); }
+
+    /* 9-slice window styling (title bar + body) */
+    .ui-window{
+      /* No backgrounds - pure image-based */
+    }
+    .ui-window-titlebar{
+      height: 16px;
+      padding: 0 4px;
+      position: relative;
+      z-index: 1;
+      /* 9-slice: repeat center 10px strip horizontally (128px - 59px - 59px = 10px) */
+      border-image: url('assets/ui-v1/ui-window-title-bar.png') 0 59 0 59 fill / 0 59px 0 59px / 0 repeat;
+    }
+    .ui-window-body{
+      margin-top: -16px;
+      padding-top: 16px;
+      /* 9-slice: repeat center 10px horizontally and vertically (128px - 59px - 59px = 10px) */
+      border-image: url('assets/ui-v1/ui-window-main.png') 59 59 59 59 fill / 59px 59px 59px 59px / 0 repeat repeat;
+    }
+    .ui-window-close-btn{
+      width: 16px;
+      height: 16px;
+      padding: 0;
+      border: none;
+      cursor: pointer;
+      background: url('assets/ui-v1/ui-window-close-base.png') center center no-repeat;
+      background-size: 16px 16px;
+      flex-shrink: 0;
+    }
+    .ui-window-close-btn:hover{
+      background-image: url('assets/ui-v1/ui-window-close-hover.png');
+    }
+    .ui-window-close-btn:active{
+      background-image: url('assets/ui-v1/ui-window-close-pressed.png');
+    }
   </style>
   
 </body>
