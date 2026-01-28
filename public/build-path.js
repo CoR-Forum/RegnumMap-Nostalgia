@@ -6,6 +6,13 @@
       <h2 style="margin: 0; flex: 1; font-size: 11px; font-weight: 700; color: #ffffff;">Build Path</h2>
       <div style="display:flex;gap:8px;align-items:center">
         <label style="display:flex;align-items:center;gap:6px;color:#fff;font-size:11px;margin-right:6px;"><input id="build-path-toggle-paths" type="checkbox" style="transform:scale(1.1)" /> <span>Show paths</span></label>
+        <label style="display:flex;align-items:center;gap:6px;color:#fff;font-size:11px;margin-right:6px;"><input id="build-path-toggle-regions" type="checkbox" style="transform:scale(1.1)" /> <span>Show regions</span></label>
+        <label style="display:flex;align-items:center;gap:6px;color:#fff;font-size:11px;margin-right:6px;"><span style="font-size:11px;color:#fff">Mode</span>
+          <select id="build-path-mode" style="margin-left:6px;padding:2px 6px;font-size:11px;background:#222;color:#fff;border:1px solid #333;">
+            <option value="path">Path</option>
+            <option value="area">Area</option>
+          </select>
+        </label>
         <button id="build-path-clear" class="btn" style="width:auto;padding:4px 8px;">Clear</button>
         <button id="build-path-copy" class="btn" style="width:auto;padding:4px 8px;">Copy</button>
         <button id="build-path-close" class="btn" style="width:auto;padding:4px 8px;">Close</button>
@@ -59,7 +66,14 @@
         gameState.buildPathPolyline = null;
       }
       if (pts.length === 0) return;
-      gameState.buildPathPolyline = L.polyline(pts, { color: '#ffff00', weight: 3, opacity: 0.9, dashArray: '6,6' }).addTo(map);
+      const mode = (gameState && gameState.buildMode) ? gameState.buildMode : 'path';
+      if (mode === 'area') {
+        // draw filled polygon for area mode
+        gameState.buildPathPolyline = L.polygon(pts, { color: '#ffea00', weight: 2, opacity: 0.95, fillColor: '#ffea00', fillOpacity: 0.25 }).addTo(map);
+      } else {
+        // default: polyline path
+        gameState.buildPathPolyline = L.polyline(pts, { color: '#ffff00', weight: 3, opacity: 0.9, dashArray: '6,6' }).addTo(map);
+      }
       try { gameState.buildPathPolyline.bringToFront(); } catch(e){}
     } catch (e) { console.error('build-path:updateBuildPathPolyline', e); }
   }
@@ -97,8 +111,42 @@
     }
   }
 
+  // Load and render regions (polygons) from API
+  async function loadAndRenderRegions(){
+    try {
+      if (gameState.regionsLayer) {
+        try { map.removeLayer(gameState.regionsLayer); } catch(e){}
+        gameState.regionsLayer = null;
+      }
+
+      const data = await apiCall('/regions');
+      const regions = data.regions || [];
+
+      const layers = [];
+      for (const r of regions) {
+        const pos = r.coordinates || r.positions || [];
+        const latlngs = positionsToLatLngs(pos);
+        if (!latlngs || latlngs.length === 0) continue;
+        const fill = (r.properties && r.properties.fillColor) ? r.properties.fillColor : (r.type === 'danger' ? '#ff5555' : '#55ff55');
+        const stroke = (r.properties && r.properties.color) ? r.properties.color : '#228822';
+        const poly = L.polygon(latlngs, { color: stroke, weight: 2, opacity: 0.9, fillColor: fill, fillOpacity: 0.25 }).addTo(map);
+        try { poly.bringToFront(); } catch (e) {}
+        const popupText = `<b>${r.name || 'Region'}</b><br>Type: ${r.type || 'n/a'}<br>Points: ${latlngs.length}`;
+        poly.bindPopup(popupText);
+        layers.push(poly);
+      }
+
+      if (layers.length > 0) {
+        gameState.regionsLayer = L.layerGroup(layers).addTo(map);
+      }
+    } catch (err) {
+      console.error('Failed to load regions:', err);
+    }
+  }
+
   // expose as global for backward compatibility
   window.loadAndRenderPaths = loadAndRenderPaths;
+  window.loadAndRenderRegions = loadAndRenderRegions;
 
   function onMapClick(e) {
     try {
@@ -135,6 +183,18 @@
     gameState.buildPathMode = true;
     const ta = document.getElementById('build-path-textarea');
 
+    // show paths and regions by default when opening the builder
+    try {
+      gameState.showPaths = true;
+      gameState.showRegions = true;
+      const tp = document.getElementById('build-path-toggle-paths');
+      const tr = document.getElementById('build-path-toggle-regions');
+      if (tp) tp.checked = true;
+      if (tr) tr.checked = true;
+      if (typeof loadAndRenderPaths === 'function') loadAndRenderPaths();
+      if (typeof loadAndRenderRegions === 'function') loadAndRenderRegions();
+    } catch (e) { console.error('build-path:showPanel init layers', e); }
+
     // update polyline when textarea changes (handles deletions)
     if (ta) {
       ta.addEventListener('input', () => {
@@ -157,6 +217,23 @@
     if (!panel) return;
     panel.style.display = 'none';
     gameState.buildPathMode = false;
+    try {
+      // remove any drawn build polyline
+      if (gameState.buildPathPolyline) { try { map.removeLayer(gameState.buildPathPolyline); } catch(e){} gameState.buildPathPolyline = null; }
+
+      // remove paths layer
+      if (gameState.pathsLayer) { try { map.removeLayer(gameState.pathsLayer); } catch(e){} gameState.pathsLayer = null; }
+      // remove regions layer
+      if (gameState.regionsLayer) { try { map.removeLayer(gameState.regionsLayer); } catch(e){} gameState.regionsLayer = null; }
+
+      // clear toggles and flags
+      gameState.showPaths = false;
+      gameState.showRegions = false;
+      const tp = document.getElementById('build-path-toggle-paths');
+      const tr = document.getElementById('build-path-toggle-regions');
+      if (tp) try { tp.checked = false; } catch(e){}
+      if (tr) try { tr.checked = false; } catch(e){}
+    } catch (e) { console.error('build-path:hidePanel cleanup', e); }
   }
 
   function init() {
@@ -166,6 +243,8 @@
     const closeBtn = document.getElementById('build-path-close');
     const copyBtn = document.getElementById('build-path-copy');
     const togglePaths = document.getElementById('build-path-toggle-paths');
+    const toggleRegions = document.getElementById('build-path-toggle-regions');
+    const modeSelect = document.getElementById('build-path-mode');
     const ta = document.getElementById('build-path-textarea');
 
     wireDrag(header, panel);
@@ -176,7 +255,7 @@
       if (gameState.buildPathPolyline) { try { map.removeLayer(gameState.buildPathPolyline); } catch(e){} gameState.buildPathPolyline = null; }
     });
 
-    if (closeBtn) closeBtn.addEventListener('click', () => { hidePanel(); if (gameState.buildPathPolyline) { try { map.removeLayer(gameState.buildPathPolyline); } catch(e){} gameState.buildPathPolyline = null; } });
+    if (closeBtn) closeBtn.addEventListener('click', () => { try { hidePanel(); } catch(e){ console.error('build-path:close', e); } });
 
     if (copyBtn) copyBtn.addEventListener('click', async () => {
       try {
@@ -200,6 +279,32 @@
             if (gameState.pathsLayer) { try { map.removeLayer(gameState.pathsLayer); } catch (e) {} gameState.pathsLayer = null; }
           }
         } catch (e) { console.error('build-path:togglePaths', e); }
+      });
+    }
+
+    if (toggleRegions) {
+      try { toggleRegions.checked = !!(gameState && gameState.showRegions); } catch (e) {}
+      toggleRegions.addEventListener('change', async () => {
+        try {
+          gameState.showRegions = !!toggleRegions.checked;
+          if (gameState.showRegions) {
+            if (typeof loadAndRenderRegions === 'function') await loadAndRenderRegions();
+          } else {
+            if (gameState.regionsLayer) { try { map.removeLayer(gameState.regionsLayer); } catch (e) {} gameState.regionsLayer = null; }
+          }
+        } catch (e) { console.error('build-path:toggleRegions', e); }
+      });
+    }
+
+    // wire mode select
+    if (modeSelect) {
+      try { if (!gameState.buildMode) gameState.buildMode = 'path'; modeSelect.value = gameState.buildMode; } catch(e){}
+      modeSelect.addEventListener('change', () => {
+        try {
+          gameState.buildMode = modeSelect.value === 'area' ? 'area' : 'path';
+          // redraw
+          updateBuildPathPolyline();
+        } catch(e) { console.error('build-path:mode change', e); }
       });
     }
 
