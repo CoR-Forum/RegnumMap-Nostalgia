@@ -109,15 +109,15 @@
     #modal-overlay.hidden{ display: none; }
 
     .modal-content{
-      background: #1a1a1a;
+      background: transparent;
       border: none;
       padding: 0;
-      max-width: 420px;
+      max-width: 252px;
       width: 90%;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.8);
-      border: 1px solid #333;
       position: relative;
       font-family: 'MS Sans Serif', Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
     }
     .modal-content::before{
       display: none;
@@ -147,23 +147,14 @@
     .map-contextmenu .map-contextmenu-item:hover{ background: rgba(255,255,255,0.04) }
 
     .modal-title{
-      font-size: 11px;
-      font-weight: 700;
-      color: #00d9ff;
-      margin: 0;
-      text-align: left;
-      font-family: 'MS Sans Serif', Arial, sans-serif;
-      text-shadow: none;
-      text-transform: none;
-      letter-spacing: 0;
-      border: none;
-      padding: 3px 4px;
-      background: linear-gradient(180deg, #000080 0%, #1084d0 100%);
+      /* Now using ui-window-titlebar styling */
     }
 
     .modal-body{
-      padding: 16px;
-      background: #1a1a1a;
+      /* Now using ui-window-body styling with 9-slice border-image */
+      padding-left: 16px;
+      padding-right: 16px;
+      padding-bottom: 16px;
     }
 
     .form-group{
@@ -180,7 +171,7 @@
 
     .form-input{
       width: 100%;
-      padding: 3px 4px;
+      padding: 3px 8px;
       border: 1px solid #444;
       background: #2a2a2a;
       color: #e0e0e0;
@@ -197,7 +188,7 @@
 
     .btn{
       width: 100%;
-      padding: 4px 8px;
+      padding: 4px 12px;
       border: 1px solid #444;
       font-size: 11px;
       font-weight: 400;
@@ -209,13 +200,13 @@
     }
 
     .btn-primary{
-      background: #0d6efd;
+      background: #4a4a4a;
       color: #ffffff;
-      border-color: #0d6efd;
+      border-color: #4a4a4a;
     }
-    .btn-primary:hover{ background: #0a58ca; }
+    .btn-primary:hover{ background: #5a5a5a; }
     .btn-primary:active{
-      background: #084298;
+      background: #3a3a3a;
     }
     .btn-primary:disabled{
       background: #2a2a2a;
@@ -684,12 +675,14 @@
 <body>
   <!-- Login/Realm Selection Modal -->
   <div id="modal-overlay">
-    <div class="modal-content">
+    <div class="modal-content ui-window">
       <!-- Step 1: Login -->
       <div id="step-login" class="modal-step active">
-        <h2 class="modal-title">Regnum Online - Login</h2>
-        <div class="modal-body">
-          <div style="background:#062635;color:#e0e0e0;padding:8px;border:1px solid #083a52;border-radius:4px;margin-bottom:12px;font-size:11px;text-align:center;">
+        <div class="modal-title ui-window-titlebar">
+          <h2 style="margin: 0; flex: 1; font-size: 11px; font-weight: 700; color: #ffffff; font-family: 'MS Sans Serif', Arial, sans-serif; text-align: center;">Regnum Online - Login</h2>
+        </div>
+        <div class="modal-body ui-window-body">
+          <div style="color:#e0e0e0;margin-bottom:12px;font-size:11px;text-align:center;padding-top:12px;">
         Login with your cor-forum.de account
           </div>
           <div id="login-error" class="error-message hidden"></div>
@@ -716,8 +709,10 @@
 
       <!-- Step 2: Realm Selection -->
       <div id="step-realm" class="modal-step">
-        <h2 class="modal-title">Regnum Online - Select Realm</h2>
-        <div class="modal-body">
+        <div class="modal-title ui-window-titlebar">
+          <h2 style="margin: 0; flex: 1; font-size: 11px; font-weight: 700; color: #ffffff; font-family: 'MS Sans Serif', Arial, sans-serif; text-align: center;">Regnum Online - Select Realm</h2>
+        </div>
+        <div class="modal-body ui-window-body">
           <p style="color:#e0e0e0;text-align:center;margin-bottom:8px;font-size:11px;">You may change your realm later</p>
           <div id="realm-error" class="error-message hidden"></div>
           <div class="realm-cards">
