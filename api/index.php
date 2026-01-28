@@ -310,7 +310,42 @@ function handleLogin() {
 
     $userId = $data['userID'];
     $username = $data['username'];
-
+    
+    // Verify forum account activation: require membership in groupID = 3
+    try {
+        $fdb = getForumDbConnection();
+        $stmt = $fdb->prepare('SELECT COUNT(*) AS cnt FROM wcf1_user_to_group WHERE userID = ? AND groupID = ?');
+        if (!$stmt) { $err = $fdb->error; $fdb->close(); respondError('Forum DB query failed: ' . $err, 500); }
+        $requiredGroup = 3;
+        $stmt->bind_param('ii', $userId, $requiredGroup);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $row = $res ? $res->fetch_assoc() : null;
+        $stmt->close();
+        $fdb->close();
+        if (!$row || intval($row['cnt']) === 0) {
+            respondError('Your cor-forum.de account is not activated. Please check your email for the activation link.', 403);
+        }
+    } catch (Exception $e) {
+        respondError('Failed to validate forum account', 500);
+    }
+    // Check if the forum user is banned (banned != 0)
+    try {
+        $fdb = getForumDbConnection();
+        $stmt = $fdb->prepare('SELECT banned FROM wcf1_user WHERE userID = ? LIMIT 1');
+        if (!$stmt) { $err = $fdb->error; $fdb->close(); respondError('Forum DB query failed: ' . $err, 500); }
+        $stmt->bind_param('i', $userId);
+        $stmt->execute();
+        $res = $stmt->get_result();
+        $userRow = $res ? $res->fetch_assoc() : null;
+        $stmt->close();
+        $fdb->close();
+        if ($userRow && isset($userRow['banned']) && intval($userRow['banned']) !== 0) {
+            respondError('Your cor-forum.de account is banned', 403);
+        }
+    } catch (Exception $e) {
+        respondError('Failed to validate forum account', 500);
+    }
     // Create or update session
     $db = getDB();
     $sessionToken = generateSessionToken();
