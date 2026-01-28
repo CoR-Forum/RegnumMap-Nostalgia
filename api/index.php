@@ -401,6 +401,36 @@ function handleGetPosition() {
     }
     $xpToNext = $nextXp !== null ? ($nextXp - $xpVal) : 0;
 
+    // compute damage and armor from base stats + equipped items
+    $strength = isset($player['strength']) ? (int)$player['strength'] : 20;
+    $intelligence = isset($player['intelligence']) ? (int)$player['intelligence'] : 20;
+    $constitution = isset($player['constitution']) ? (int)$player['constitution'] : 20;
+    $dexterity = isset($player['dexterity']) ? (int)$player['dexterity'] : 20;
+
+    // gather equipped items and sum their `damage` and `armor` stats (if present)
+    $equip = ensureEquipmentRow($db, $session['user_id']);
+    $slots = getEquipmentSlots();
+    $itemDamage = 0;
+    $itemArmor = 0;
+    foreach ($slots as $s) {
+        $invId = $equip[$s] ?? null;
+        if ($invId) {
+            $it = fetchEquippedItemDetails($db, $invId);
+            if ($it && isset($it['stats']) && is_array($it['stats'])) {
+                // prefer explicit `damage`/`armor` keys inside item stats
+                $itemDamage += isset($it['stats']['damage']) ? (int)$it['stats']['damage'] : 0;
+                $itemArmor += isset($it['stats']['armor']) ? (int)$it['stats']['armor'] : 0;
+            }
+        }
+    }
+
+    // simple formulas: base contributions from attributes + item bonuses
+    $baseDamage = (int)floor($strength * 0.5 + $intelligence * 0.3);
+    $baseArmor = (int)floor($constitution * 0.5 + $dexterity * 0.3);
+
+    $computedDamage = $baseDamage + $itemDamage;
+    $computedArmor = $baseArmor + $itemArmor;
+
     $resp = [
         'position' => [ 'x' => (int)$player['x'], 'y' => (int)$player['y'] ],
         'realm' => $player['realm'],
@@ -408,6 +438,8 @@ function handleGetPosition() {
         'maxHealth' => (int)$player['max_health'],
         'mana' => (int)$player['mana'],
         'maxMana' => (int)$player['max_mana'],
+        'damage' => $computedDamage,
+        'armor' => $computedArmor,
         'xp' => $xpVal,
         'level' => isset($player['level']) ? (int)$player['level'] : xpToLevel($xpVal),
         'xpToNext' => $xpToNext,
