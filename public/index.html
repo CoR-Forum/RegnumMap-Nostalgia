@@ -173,6 +173,12 @@
       margin-bottom: 4px;
       font-family: 'MS Sans Serif', Arial, sans-serif;
     }
+    .item-icon img{
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+      image-rendering: pixelated;
+    }
 
     .form-input{
       width: 100%;
@@ -402,6 +408,7 @@
 
     /* Inventory window sizing */
     #inventory-window{
+      height: 600px;
       max-height: 600px;
     }
     #inventory-list{
@@ -489,6 +496,13 @@
       font-size: 32px;
       filter: drop-shadow(0 2px 3px rgba(0,0,0,0.7));
     }
+    .slot-icon img{
+      width: 40px;
+      height: 40px;
+      object-fit: contain;
+      image-rendering: pixelated;
+      display: block;
+    }
 
     .slot-quantity{
       position: absolute;
@@ -564,6 +578,13 @@
       color: #e6e6e6;
       flex: 0 0 auto;
       filter: drop-shadow(0 1px 1px rgba(0,0,0,0.7));
+    }
+    .item-tooltip .tooltip-icon img{
+      width: 20px;
+      height: 20px;
+      object-fit: contain;
+      image-rendering: pixelated;
+      display: block;
     }
     .item-tooltip .tooltip-title{
       display: flex;
@@ -739,9 +760,9 @@
   </div>
 
   <!-- Inventory Window -->
-  <div id="inventory-window" class="ui-window" style="position: absolute; right: 12px; bottom: 12px; width: 304px; z-index: 1000; display: none; flex-direction: column; font-family: 'MS Sans Serif', Arial, sans-serif;">
+  <div id="inventory-window" class="ui-window" style="position: absolute; right: 12px; bottom: 62px; width: 304px; z-index: 1000; display: none; flex-direction: column; font-family: 'MS Sans Serif', Arial, sans-serif;">
     <div id="inventory-header" class="ui-window-titlebar" style="cursor: move; display: flex; justify-content: space-between; align-items: center; user-select: none;">
-      <h2 style="margin: 0; flex: 1; font-size: 11px; font-weight: 700; color: #ffffff; font-family: 'MS Sans Serif', Arial, sans-serif;">Inventory</h2>
+      <h2 style="margin: 0; flex: 1; font-size: 11px; font-weight: 700; color: #ffffff; font-family: 'MS Sans Serif', Arial, sans-serif; text-align: center;">Inventory</h2>
       <button id="inventory-close-btn" class="ui-window-close-btn"></button>
     </div>
 
@@ -790,9 +811,9 @@
   <div id="coords" aria-hidden="true"></div>
   
   <!-- Character Window (equipment + stats) -->
-  <div id="character-window" class="ui-window" style="position: absolute; left: 12px; bottom: 12px; width: 320px; z-index: 1000; display: none; flex-direction: column; font-family: 'MS Sans Serif', Arial, sans-serif;">
+  <div id="character-window" class="ui-window" style="position: absolute; left: 12px; bottom: 195px; width: 240px; z-index: 1000; display: none; flex-direction: column; font-family: 'MS Sans Serif', Arial, sans-serif;">
     <div id="character-header" class="ui-window-titlebar" style="cursor: move; display: flex; justify-content: space-between; align-items: center; user-select: none;">
-      <h2 style="margin: 0; flex: 1; font-size: 11px; font-weight: 700; color: #ffffff;">Character</h2>
+      <h2 style="margin: 0; flex: 1; font-size: 11px; font-weight: 700; color: #ffffff; text-align: center;">Character</h2>
       <button id="character-close-btn" class="ui-window-close-btn"></button>
     </div>
 
@@ -1454,14 +1475,7 @@
       document.getElementById('inventory-items').style.display = 'block';
       footer.style.display = 'flex';
 
-      // Icon mapping
-      const iconMap = {
-        weapon: '⚔️',
-        armor: '🛡️',
-        consumable: '🧪',
-        currency: '💰',
-        misc: '📦'
-      };
+      const defaultItemIcon = 'item-default.png';
 
       // Make character window draggable
       (function() {
@@ -1516,12 +1530,13 @@
         const itemDiv = document.createElement('div');
         itemDiv.className = 'inventory-item';
 
-        const icon = iconMap[item.itemType] || '📦';
+        const iconName = item.iconName || item.icon_name || defaultItemIcon;
+        const iconSrc = `assets/v1/items/${iconName || defaultItemIcon}`;
 
         const rarityClass = (item.rarity || 'common');
 
         itemDiv.innerHTML = `
-          <div class="item-icon">${icon}</div>
+          <div class="item-icon"><img src="${iconSrc}" alt="${item.itemName}"></div>
           <div class="item-name ${rarityClass}">${item.itemName}${typeof item.level !== 'undefined' ? ` <span class="item-level">Lv ${item.level}</span>` : ''}</div>
           ${item.quantity > 1 ? `<div class="item-quantity">×${item.quantity}</div>` : ''}
         `;
@@ -1607,14 +1622,9 @@
     const tooltip = document.createElement('div');
     tooltip.className = 'item-tooltip';
 
-      const tooltipIconMap = {
-        weapon: '⚔️',
-        armor: '🛡️',
-        consumable: '🧪',
-        currency: '💰',
-        misc: '📦'
-      };
-      const tooltipIcon = tooltipIconMap[item.itemType] || '📦';
+      const defaultItemIcon = 'item-default.png';
+      const tooltipIconName = item.iconName || item.icon_name || defaultItemIcon;
+      const tooltipIconSrc = `assets/v1/items/${tooltipIconName || defaultItemIcon}`;
       
       // Format stats
       let statsHtml = '';
@@ -1629,7 +1639,7 @@
 
       tooltip.innerHTML = `
         <div class="tooltip-header">
-          <div class="tooltip-icon">${tooltipIcon}</div>
+          <div class="tooltip-icon"><img src="${tooltipIconSrc}" alt="${item.itemName}"></div>
           <div class="tooltip-title">
             <div class="tooltip-name ${rarityClass}">${item.itemName} ${typeof item.level !== 'undefined' ? `<span class="tooltip-level">Lv ${item.level}</span>` : ''}</div>
           </div>
@@ -1661,18 +1671,10 @@
     }
 
     // Equipment rendering and drag/drop handlers
-    function getEquipIcon(type, slotName){
-      const map = {
-        weapon: '⚔️',
-        armor: '🛡️',
-        consumable: '🧪',
-        currency: '💰',
-        misc: '📦'
-      };
-      if(slotName && slotName.startsWith('ring')) return '💍';
-      if(slotName && slotName.includes('weapon')) return '⚔️';
-      if(type && map[type]) return map[type];
-      return '🔹';
+    function getEquipIconSrc(item){
+      const defaultItemIcon = 'item-default.png';
+      const iconName = item.iconName || item.icon_name || defaultItemIcon;
+      return `assets/v1/items/${iconName || defaultItemIcon}`;
     }
 
     // Friendly label for item type + equipment slot
@@ -1713,8 +1715,8 @@
 
           if(info && info.inventoryId){
             const it = info.item || {};
-            const icon = getEquipIcon(it.type, slot);
-            target.innerHTML = `<div class="slot-icon">${icon}</div>`;
+            const iconSrc = getEquipIconSrc(it || {});
+            target.innerHTML = `<div class="slot-icon"><img src="${iconSrc}" alt="${it.name || it.itemName || 'Item'}"></div>`;
             target.dataset.inventoryId = info.inventoryId;
             // Tooltip
             target.addEventListener('mouseenter', (e)=>{
@@ -1726,7 +1728,8 @@
                 stats: it.stats || {},
                 rarity: it.rarity || 'common',
                 quantity: it.quantity || 1,
-                level: typeof it.level !== 'undefined' ? it.level : 1
+                level: typeof it.level !== 'undefined' ? it.level : 1,
+                iconName: it.iconName || it.icon_name || null
               };
               showTooltip(e, tooltipItem);
             });

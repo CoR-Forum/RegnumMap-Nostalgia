@@ -417,17 +417,41 @@ function handleRealmSelect() {
     $itemCount = $stmt->fetchColumn();
 
     if ($itemCount == 0) {
-        // Give the new player one of every available item template
-        $stmt = $db->prepare('SELECT item_id, stackable FROM items');
-        $stmt->execute();
-        $templates = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        // Give the new player a specific starter set by item name
+        $starterItems = [
+            ['name' => 'Gold Coin', 'quantity' => 50],
+            ['name' => 'Iron Sword', 'quantity' => 1],
+            ['name' => 'Wooden Shield', 'quantity' => 1],
+            ['name' => 'Leather Cap', 'quantity' => 1]
+        ];
 
+        $find = $db->prepare('SELECT item_id FROM items WHERE name = ? LIMIT 1');
         $ins = $db->prepare('INSERT INTO inventory (user_id, item_id, quantity, acquired_at) VALUES (?, ?, ?, ?)');
         $now = now();
-        foreach ($templates as $t) {
-            // Give quantity 1 for every template (stackable items also get 1)
-            $ins->execute([$session['user_id'], $t['item_id'], 1, $now]);
+        $starterInventoryIds = [];
+
+        foreach ($starterItems as $entry) {
+            $find->execute([$entry['name']]);
+            $itemId = $find->fetchColumn();
+            if ($itemId) {
+                $ins->execute([$session['user_id'], (int)$itemId, (int)$entry['quantity'], $now]);
+                $starterInventoryIds[$entry['name']] = (int)$db->lastInsertId();
+            }
         }
+
+        // Auto-equip starter items if present
+        $equip = ensureEquipmentRow($db, $session['user_id']);
+        $equip['updated_at'] = now();
+        if (!empty($starterInventoryIds['Leather Cap'])) {
+            $equip['head'] = $starterInventoryIds['Leather Cap'];
+        }
+        if (!empty($starterInventoryIds['Iron Sword'])) {
+            $equip['weapon_right'] = $starterInventoryIds['Iron Sword'];
+        }
+        if (!empty($starterInventoryIds['Wooden Shield'])) {
+            $equip['weapon_left'] = $starterInventoryIds['Wooden Shield'];
+        }
+        updateEquipmentDB($db, $equip);
     }
 
     // Update session realm

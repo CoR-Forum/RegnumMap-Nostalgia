@@ -266,22 +266,18 @@ try {
     // Seed items (item templates)
     $items = [
         // Consumables & currency
-        ['Health Potion', 'consumable', 'Restores 100 health', '{"heal": 100}', 'common', 1, 1, NULL, 'item-health-potion.png'],
-        ['Mana Potion', 'consumable', 'Restores 50 mana', '{"mana": 50}', 'common', 1, 1, NULL, 'item-mana-potion.png'],
-        ['Health Elixir', 'consumable', 'Fully restores health', '{"heal": 9999}', 'rare', 1, 5, NULL, 'item-health-elixir.png'],
-        ['Teleport Scroll', 'consumable', 'Teleports to spawn point', '{}', 'uncommon', 1, 1, NULL, 'item-teleport-scroll.png'],
+        ['Health Potion', 'consumable', 'Restores 100 health', '{"heal": 100}', 'common', 1, 1, NULL, 'item-health-potion-50.png'],
+        ['Mana Potion', 'consumable', 'Restores 50 mana', '{"mana": 50}', 'common', 1, 1, NULL, 'item-mana-potion-50.png'],
+        ['Teleport Scroll', 'consumable', 'Teleports to spawn point', '{}', 'uncommon', 1, 1, NULL, 'item-teleport.png'],
         ['Gold Coin', 'currency', 'A shiny gold coin', '{"value": 1}', 'common', 1, 0, NULL, 'item-gold-coin.png'],
 
         // Weapons (right hand)
-        ['Iron Sword', 'weapon', 'A basic iron sword', '{"damage": 15, "speed": 1.2}', 'common', 0, 1, 'weapon_right', 'item-iron-sword.png'],
-        ['Steel Sword', 'weapon', 'A sturdy steel sword', '{"damage": 25, "speed": 1.3}', 'uncommon', 0, 3, 'weapon_right', 'item-steel-sword.png'],
-        ['Magic Staff', 'weapon', 'A staff imbued with magic', '{"damage": 20, "mana_boost": 30}', 'rare', 0, 5, 'weapon_right', 'item-magic-staff.png'],
-        ['Battle Axe', 'weapon', 'A heavy two-handed axe', '{"damage": 35, "speed": 0.9}', 'rare', 0, 6, 'weapon_right', 'item-battle-axe.png'],
-        ['Dagger', 'weapon', 'A small quick blade', '{"damage": 8, "speed": 1.8}', 'common', 0, 1, 'weapon_right', 'item-dagger.png'],
+        ['Iron Sword', 'weapon', 'A basic iron sword', '{"damage": 15, "speed": 1.2}', 'common', 0, 1, 'weapon_right', 'item-short-sword.png'],
+        ['Steel Sword', 'weapon', 'A sturdy steel sword', '{"damage": 25, "speed": 1.3}', 'uncommon', 0, 3, 'weapon_right', 'item-long-sword.png'],
 
         // Off-hand (left hand) - shields / secondary weapons
         ['Wooden Shield', 'armor', 'A simple wooden shield', '{"defense": 10}', 'common', 0, 1, 'weapon_left', 'item-wooden-shield.png'],
-        ['Tower Shield', 'armor', 'Large shield offering excellent protection', '{"defense": 22}', 'uncommon', 0, 4, 'weapon_left', 'item-tower-shield.png'],
+        ['Tower Shield', 'armor', 'Large shield offering excellent protection', '{"defense": 22}', 'uncommon', 0, 4, 'weapon_left', 'item-metal-shield.png'],
 
         // Head
         ['Leather Cap', 'armor', 'A light leather cap', '{"defense": 5}', 'common', 0, 1, 'head', 'item-leather-cap.png'],
