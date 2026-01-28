@@ -2,3 +2,4 @@
 database.sqlite*
 cor-forum-api-reference.*
 .env
+public/assets/screenshots/*

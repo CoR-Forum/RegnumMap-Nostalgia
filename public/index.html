@@ -151,6 +151,36 @@
     }
     .map-contextmenu .map-contextmenu-item:hover{ background: rgba(255,255,255,0.04) }
 
+    /* Screenshot markers */
+    .screenshot-marker {
+      background: transparent;
+      border: none;
+    }
+    .screenshot-dot {
+      width: 8px;
+      height: 8px;
+      background: rgba(128, 128, 128, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .screenshot-marker:hover .screenshot-dot {
+      background: rgba(128, 128, 128, 0.8);
+      transform: scale(1.3);
+      box-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+    }
+    .screenshot-tooltip {
+      background: linear-gradient(180deg, rgba(20,22,26,0.98), rgba(10,12,15,0.98)) !important;
+      border: 1px solid #2a2f37 !important;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.6) !important;
+      padding: 8px !important;
+      border-radius: 4px !important;
+    }
+    .screenshot-tooltip .leaflet-tooltip-content {
+      margin: 0 !important;
+    }
+
     .modal-title{
       /* Now using ui-window-titlebar styling */
     }
@@ -871,6 +901,94 @@
       </div>
     </div>
   </div>
+
+  <!-- Screenshots Window -->
+  <div id="screenshots-window" class="ui-window" style="position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 580px; height: 480px; z-index: 10000; display: none; flex-direction: column; font-family: 'MS Sans Serif', Arial, sans-serif;">
+    <div id="screenshots-header" class="ui-window-titlebar" style="cursor: move; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+      <h2 style="margin: 0; flex: 1; font-size: 11px; font-weight: 700; color: #ffffff; text-align: center;">Screenshots Manager</h2>
+      <button id="screenshots-close-btn" class="ui-window-close-btn"></button>
+    </div>
+
+    <div class="ui-window-body" style="padding: 8px; display: flex; gap: 8px; height: 100%; overflow: hidden;">
+      <!-- Left side: Form -->
+      <div style="flex: 1; display: flex; flex-direction: column; gap: 6px; overflow-y: auto;">
+        <div style="font-size: 10px; color: #e0e0e0;">
+          <label style="display: block; margin-bottom: 3px; font-weight: 600;">Screenshot File *</label>
+          <input type="file" id="screenshot-file-input" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp" style="width: 100%; padding: 3px; background: rgba(0,0,0,0.4); border: 1px solid #2a3f5f; color: #e0e0e0; font-size: 10px; border-radius: 2px;">
+          <div id="screenshot-preview" style="margin-top: 6px; max-height: 100px; overflow: hidden; border: 1px solid #2a3f5f; border-radius: 2px; display: none;">
+            <img id="screenshot-preview-img" style="width: 100%; height: auto; display: block;">
+          </div>
+        </div>
+
+        <div style="font-size: 10px; color: #e0e0e0;">
+          <label style="display: block; margin-bottom: 3px; font-weight: 600;">Name (EN)</label>
+          <input type="text" id="screenshot-name-en" placeholder="English name" style="width: 100%; padding: 3px; background: rgba(0,0,0,0.4); border: 1px solid #2a3f5f; color: #e0e0e0; font-size: 10px; border-radius: 2px;">
+        </div>
+
+        <div style="font-size: 10px; color: #e0e0e0;">
+          <label style="display: block; margin-bottom: 3px; font-weight: 600;">Name (DE)</label>
+          <input type="text" id="screenshot-name-de" placeholder="Deutscher Name" style="width: 100%; padding: 3px; background: rgba(0,0,0,0.4); border: 1px solid #2a3f5f; color: #e0e0e0; font-size: 10px; border-radius: 2px;">
+        </div>
+
+        <div style="font-size: 10px; color: #e0e0e0;">
+          <label style="display: block; margin-bottom: 3px; font-weight: 600;">Name (ES)</label>
+          <input type="text" id="screenshot-name-es" placeholder="Nombre español" style="width: 100%; padding: 3px; background: rgba(0,0,0,0.4); border: 1px solid #2a3f5f; color: #e0e0e0; font-size: 10px; border-radius: 2px;">
+        </div>
+
+        <div style="font-size: 10px; color: #e0e0e0;">
+          <label style="display: block; margin-bottom: 3px; font-weight: 600;">Description (EN)</label>
+          <textarea id="screenshot-desc-en" placeholder="English description" style="width: 100%; padding: 3px; background: rgba(0,0,0,0.4); border: 1px solid #2a3f5f; color: #e0e0e0; font-size: 10px; border-radius: 2px; resize: vertical; min-height: 40px;"></textarea>
+        </div>
+
+        <div style="font-size: 10px; color: #e0e0e0;">
+          <label style="display: block; margin-bottom: 3px; font-weight: 600;">Description (DE)</label>
+          <textarea id="screenshot-desc-de" placeholder="Deutsche Beschreibung" style="width: 100%; padding: 3px; background: rgba(0,0,0,0.4); border: 1px solid #2a3f5f; color: #e0e0e0; font-size: 10px; border-radius: 2px; resize: vertical; min-height: 40px;"></textarea>
+        </div>
+
+        <div style="font-size: 10px; color: #e0e0e0;">
+          <label style="display: block; margin-bottom: 3px; font-weight: 600;">Description (ES)</label>
+          <textarea id="screenshot-desc-es" placeholder="Descripción española" style="width: 100%; padding: 3px; background: rgba(0,0,0,0.4); border: 1px solid #2a3f5f; color: #e0e0e0; font-size: 10px; border-radius: 2px; resize: vertical; min-height: 40px;"></textarea>
+        </div>
+
+        <div style="font-size: 10px; color: #e0e0e0;">
+          <label style="display: block; margin-bottom: 3px; font-weight: 600;">Location</label>
+          <input type="text" id="screenshot-location" placeholder="e.g., Alsius Castle" style="width: 100%; padding: 3px; background: rgba(0,0,0,0.4); border: 1px solid #2a3f5f; color: #e0e0e0; font-size: 10px; border-radius: 2px;">
+        </div>
+
+        <div style="font-size: 10px; color: #e0e0e0;">
+          <label style="display: block; margin-bottom: 3px; font-weight: 600;">Visible Characters</label>
+          <input type="text" id="screenshot-characters" placeholder="e.g., PlayerName1, PlayerName2" style="width: 100%; padding: 3px; background: rgba(0,0,0,0.4); border: 1px solid #2a3f5f; color: #e0e0e0; font-size: 10px; border-radius: 2px;">
+          <div style="font-size: 8px; color: #888; margin-top: 2px;">Comma-separated list of character names</div>
+        </div>
+
+        <div style="display: flex; gap: 6px;">
+          <div style="flex: 1; font-size: 10px; color: #e0e0e0;">
+            <label style="display: block; margin-bottom: 3px; font-weight: 600;">X Coordinate *</label>
+            <input type="number" id="screenshot-x" placeholder="X" style="width: 100%; padding: 3px; background: rgba(0,0,0,0.4); border: 1px solid #2a3f5f; color: #e0e0e0; font-size: 10px; border-radius: 2px;">
+          </div>
+          <div style="flex: 1; font-size: 10px; color: #e0e0e0;">
+            <label style="display: block; margin-bottom: 3px; font-weight: 600;">Y Coordinate *</label>
+            <input type="number" id="screenshot-y" placeholder="Y" style="width: 100%; padding: 3px; background: rgba(0,0,0,0.4); border: 1px solid #2a3f5f; color: #e0e0e0; font-size: 10px; border-radius: 2px;">
+          </div>
+        </div>
+
+        <div style="margin-top: 6px; display: flex; gap: 6px;">
+          <button id="screenshot-save-btn" style="flex: 1; padding: 6px; background: linear-gradient(180deg, #3b82f6, #2563eb); border: 1px solid #1d4ed8; color: white; font-size: 10px; font-weight: 600; border-radius: 3px; cursor: pointer;">Save</button>
+          <button id="screenshot-delete-btn" style="flex: 1; padding: 6px; background: linear-gradient(180deg, #ef4444, #dc2626); border: 1px solid #b91c1c; color: white; font-size: 10px; font-weight: 600; border-radius: 3px; cursor: pointer; display: none;">Delete</button>
+          <button id="screenshot-cancel-btn" style="flex: 1; padding: 6px; background: linear-gradient(180deg, #6b7280, #4b5563); border: 1px solid #374151; color: white; font-size: 10px; font-weight: 600; border-radius: 3px; cursor: pointer;">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Right side: List -->
+      <div style="width: 180px; display: flex; flex-direction: column; gap: 6px;">
+        <div style="font-size: 10px; color: #e0e0e0; font-weight: 600; padding-bottom: 3px; border-bottom: 1px solid #2a3f5f;">Screenshots</div>
+        <div id="screenshots-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;">
+          <div style="text-align: center; color: #888; font-size: 9px; padding: 20px;">No screenshots</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="header-actions">
     <button class="btn-logout" id="logout-btn">Logout</button>
   </div>
@@ -1986,6 +2104,9 @@
         // Start polling for superbosses
         startSuperbossesPolling();
 
+        // Load and display screenshots
+        loadAndDisplayScreenshots();
+
         updatePlayerCoords(gameState.position.x, gameState.position.y);
       } catch (error) {
         // Initialization failed (likely invalid/expired session).
@@ -2041,7 +2162,7 @@
       __mapContextMenuEl = document.createElement('div');
       __mapContextMenuEl.id = 'map-contextmenu';
       __mapContextMenuEl.className = 'map-contextmenu';
-      __mapContextMenuEl.innerHTML = '<div class="map-contextmenu-item" id="map-walk-here">Walk here</div><div class="map-contextmenu-item" id="map-teleport">Teleport</div><div class="map-contextmenu-item" id="map-copy-coords">Copy Coords</div>';
+      __mapContextMenuEl.innerHTML = '<div class="map-contextmenu-item" id="map-walk-here">Walk here</div><div class="map-contextmenu-item" id="map-teleport">Teleport</div><div class="map-contextmenu-item" id="map-copy-coords">Copy Coords</div><div class="map-contextmenu-item" id="map-screenshots">Screenshots</div>';
       document.body.appendChild(__mapContextMenuEl);
 
       __mapContextMenuEl.querySelector('#map-teleport').addEventListener('click', async (ev) => {
@@ -2114,6 +2235,18 @@
         ev.stopPropagation();
         hideMapContextMenu();
         try { if (window.buildPath && typeof window.buildPath.showPanel === 'function') window.buildPath.showPanel(); } catch (e) { console.error(e); }
+      });
+
+      // Add Screenshots menu item
+      __mapContextMenuEl.querySelector('#map-screenshots').addEventListener('click', async (ev) => {
+        ev.stopPropagation();
+        const ll = __lastContextLatLng;
+        hideMapContextMenu();
+        if (ll && window.screenshotManager && typeof window.screenshotManager.openModal === 'function') {
+          const x = Math.round(ll.lng);
+          const y = Math.round(totalH - ll.lat);
+          window.screenshotManager.openModal(x, y);
+        }
       });
 
       // Hide menu when clicking elsewhere or pressing Escape
@@ -2648,6 +2781,96 @@
       }
     }
 
+    // Screenshot markers management
+    async function loadAndDisplayScreenshots() {
+      try {
+        const headers = {};
+        if (gameState && gameState.sessionToken) {
+          headers['X-Session-Token'] = gameState.sessionToken;
+        }
+        const res = await fetch('/api/screenshots', { 
+          method: 'GET', 
+          headers, 
+          credentials: 'same-origin' 
+        });
+        const data = await res.json();
+        if (data.success && data.screenshots) {
+          displayScreenshotMarkers(data.screenshots);
+        }
+      } catch (e) {
+        console.error('Failed to load screenshots:', e);
+      }
+    }
+
+    // Helper function to construct screenshot URL from filename
+    function getScreenshotUrl(filename) {
+      return `https://cor-forum.de/regnum/RegnumNostalgia/screenshots/${filename}`;
+    }
+
+    function displayScreenshotMarkers(screenshots) {
+      // Initialize screenshots map in gameState if not present
+      if (!gameState.screenshots) {
+        gameState.screenshots = new Map();
+      }
+
+      const currentIds = new Set();
+
+      screenshots.forEach(screenshot => {
+        currentIds.add(screenshot.id);
+        const latLng = [totalH - screenshot.y, screenshot.x];
+
+        // Create tiny gray transparent dot marker
+        const dotIcon = L.divIcon({
+          className: 'screenshot-marker',
+          html: '<div class="screenshot-dot"></div>',
+          iconSize: [8, 8],
+          iconAnchor: [4, 4]
+        });
+
+        if (gameState.screenshots.has(screenshot.id)) {
+          // Update existing marker (remove and recreate)
+          const oldMarker = gameState.screenshots.get(screenshot.id);
+          map.removeLayer(oldMarker);
+        }
+
+        const marker = L.marker(latLng, { icon: dotIcon }).addTo(map);
+
+        // Build tooltip content with screenshot image and details
+        const name = screenshot.name?.en || screenshot.name?.de || screenshot.name?.es || 'Unnamed';
+        const description = screenshot.description?.en || screenshot.description?.de || screenshot.description?.es || '';
+        const location = screenshot.location || '';
+        const visibleCharacters = screenshot.visibleCharacters || '';
+        
+        const tooltipHtml = `
+          <div style="max-width: 250px;">
+            <div style="margin-bottom: 6px;">
+              <img src="${getScreenshotUrl(screenshot.filename)}" style="width: 100%; height: auto; border-radius: 3px; display: block;">
+            </div>
+            <div style="font-weight: 700; margin-bottom: 4px; font-size: 13px; color: #ffffff; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">${name}</div>
+            ${location ? `<div style="color: #aaa; font-size: 10px; margin-bottom: 4px; font-weight: 500;">${location}</div>` : ''}
+            ${visibleCharacters ? `<div style="color: #60a5fa; font-size: 10px; margin-bottom: 4px; font-weight: 500;">👥 ${visibleCharacters}</div>` : ''}
+            ${description ? `<div style="font-size: 10px; line-height: 1.3; color: #ccc;">${description}</div>` : ''}
+          </div>
+        `;
+
+        marker.bindTooltip(tooltipHtml, { 
+          className: 'screenshot-tooltip', 
+          direction: 'top', 
+          offset: [0, -4]
+        });
+
+        gameState.screenshots.set(screenshot.id, marker);
+      });
+
+      // Remove markers for deleted screenshots
+      for (const [id, marker] of gameState.screenshots.entries()) {
+        if (!currentIds.has(id)) {
+          map.removeLayer(marker);
+          gameState.screenshots.delete(id);
+        }
+      }
+    }
+
     // Initialize reusable window wiring (drag + close)
     initWindows();
 
@@ -2983,6 +3206,373 @@
       fetchMessages();
       const poll = setInterval(fetchMessages, 5000);
       window.addEventListener('beforeunload', ()=>clearInterval(poll));
+    })();
+  </script>
+
+  <script>
+    // Screenshot Manager
+    (function() {
+      const API_BASE = '/api';
+      let screenshots = [];
+      let currentScreenshot = null;
+      let contextX = null;
+      let contextY = null;
+
+      const modal = document.getElementById('screenshots-window');
+      const closeBtn = document.getElementById('screenshots-close-btn');
+      const saveBtn = document.getElementById('screenshot-save-btn');
+      const deleteBtn = document.getElementById('screenshot-delete-btn');
+      const cancelBtn = document.getElementById('screenshot-cancel-btn');
+      const fileInput = document.getElementById('screenshot-file-input');
+      const previewDiv = document.getElementById('screenshot-preview');
+      const previewImg = document.getElementById('screenshot-preview-img');
+      const listDiv = document.getElementById('screenshots-list');
+
+      const nameEnInput = document.getElementById('screenshot-name-en');
+      const nameDeInput = document.getElementById('screenshot-name-de');
+      const nameEsInput = document.getElementById('screenshot-name-es');
+      const descEnInput = document.getElementById('screenshot-desc-en');
+      const descDeInput = document.getElementById('screenshot-desc-de');
+      const descEsInput = document.getElementById('screenshot-desc-es');
+      const locationInput = document.getElementById('screenshot-location');
+      const charactersInput = document.getElementById('screenshot-characters');
+      const xInput = document.getElementById('screenshot-x');
+      const yInput = document.getElementById('screenshot-y');
+
+      // Make window draggable
+      function initDraggable() {
+        const header = document.getElementById('screenshots-header');
+        let isDragging = false;
+        let startX, startY, startLeft, startTop;
+
+        header.addEventListener('mousedown', (e) => {
+          if (e.target === closeBtn) return;
+          isDragging = true;
+          startX = e.clientX;
+          startY = e.clientY;
+          const rect = modal.getBoundingClientRect();
+          startLeft = rect.left;
+          startTop = rect.top;
+          modal.style.transform = 'none';
+          modal.style.left = startLeft + 'px';
+          modal.style.top = startTop + 'px';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+          if (!isDragging) return;
+          const dx = e.clientX - startX;
+          const dy = e.clientY - startY;
+          modal.style.left = (startLeft + dx) + 'px';
+          modal.style.top = (startTop + dy) + 'px';
+        });
+
+        document.addEventListener('mouseup', () => {
+          isDragging = false;
+        });
+      }
+
+      async function loadScreenshots() {
+        try {
+          const headers = {};
+          if (gameState && gameState.sessionToken) {
+            headers['X-Session-Token'] = gameState.sessionToken;
+          }
+          const res = await fetch(`${API_BASE}/screenshots`, { 
+            method: 'GET', 
+            headers, 
+            credentials: 'same-origin' 
+          });
+          const data = await res.json();
+          if (data.success) {
+            screenshots = data.screenshots || [];
+            renderScreenshots();
+          } else {
+            console.error('Failed to load screenshots:', data.error);
+          }
+        } catch (e) {
+          console.error('Failed to load screenshots:', e);
+        }
+      }
+
+      function renderScreenshots() {
+        if (screenshots.length === 0) {
+          listDiv.innerHTML = '<div style="text-align: center; color: #888; font-size: 10px; padding: 20px;">No screenshots</div>';
+          return;
+        }
+
+        listDiv.innerHTML = '';
+        screenshots.forEach(s => {
+          const div = document.createElement('div');
+          div.style.cssText = 'padding: 6px; background: rgba(0,0,0,0.3); border: 1px solid #2a3f5f; border-radius: 2px; cursor: pointer; font-size: 10px; color: #e0e0e0; transition: all 0.15s;';
+          div.addEventListener('mouseenter', () => {
+            div.style.background = 'rgba(0,0,0,0.5)';
+            div.style.borderColor = '#3b82f6';
+          });
+          div.addEventListener('mouseleave', () => {
+            div.style.background = 'rgba(0,0,0,0.3)';
+            div.style.borderColor = '#2a3f5f';
+          });
+
+          const name = s.name?.en || s.name?.de || s.name?.es || 'Unnamed';
+          const coords = `[${s.x}, ${s.y}]`;
+          
+          div.innerHTML = `
+            <div style="font-weight: 600; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${name}</div>
+            <div style="color: #888; font-size: 9px;">${coords}</div>
+            <div style="margin-top: 4px; max-height: 60px; overflow: hidden;">
+              <img src="${getScreenshotUrl(s.filename)}" style="width: 100%; height: auto; border-radius: 2px;">
+            </div>
+          `;
+
+          div.addEventListener('click', () => {
+            loadScreenshotToForm(s);
+          });
+
+          listDiv.appendChild(div);
+        });
+      }
+
+      function loadScreenshotToForm(s) {
+        currentScreenshot = s;
+        
+        nameEnInput.value = s.name?.en || '';
+        nameDeInput.value = s.name?.de || '';
+        nameEsInput.value = s.name?.es || '';
+        descEnInput.value = s.description?.en || '';
+        descDeInput.value = s.description?.de || '';
+        descEsInput.value = s.description?.es || '';
+        locationInput.value = s.location || '';
+        charactersInput.value = s.visibleCharacters || '';
+        xInput.value = s.x;
+        yInput.value = s.y;
+
+        // Show existing screenshot preview
+        previewImg.src = getScreenshotUrl(s.filename);
+        previewDiv.style.display = 'block';
+
+        // Disable file input (cannot change file on edit)
+        fileInput.disabled = true;
+        fileInput.style.opacity = '0.5';
+
+        // Show delete button, hide file requirement
+        deleteBtn.style.display = 'block';
+        saveBtn.textContent = 'Update';
+      }
+
+      function clearForm() {
+        currentScreenshot = null;
+        
+        nameEnInput.value = '';
+        nameDeInput.value = '';
+        nameEsInput.value = '';
+        descEnInput.value = '';
+        descDeInput.value = '';
+        descEsInput.value = '';
+        locationInput.value = '';
+        charactersInput.value = '';
+        xInput.value = contextX !== null ? contextX : '';
+        yInput.value = contextY !== null ? contextY : '';
+
+        fileInput.value = '';
+        fileInput.disabled = false;
+        fileInput.style.opacity = '1';
+        previewDiv.style.display = 'none';
+        previewImg.src = '';
+
+        deleteBtn.style.display = 'none';
+        saveBtn.textContent = 'Save';
+      }
+
+      function openModal(x, y) {
+        contextX = x;
+        contextY = y;
+        clearForm();
+        loadScreenshots();
+        modal.style.display = 'flex';
+      }
+
+      function closeModal() {
+        modal.style.display = 'none';
+        clearForm();
+      }
+
+      // File preview
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            previewImg.src = ev.target.result;
+            previewDiv.style.display = 'block';
+          };
+          reader.readAsDataURL(file);
+        } else {
+          previewDiv.style.display = 'none';
+          previewImg.src = '';
+        }
+      });
+
+      // Save screenshot
+      saveBtn.addEventListener('click', async () => {
+        const x = parseInt(xInput.value);
+        const y = parseInt(yInput.value);
+
+        if (isNaN(x) || isNaN(y)) {
+          alert('X and Y coordinates are required');
+          return;
+        }
+
+        try {
+          saveBtn.disabled = true;
+          saveBtn.textContent = currentScreenshot ? 'Updating...' : 'Saving...';
+
+          if (currentScreenshot) {
+            // Update existing screenshot
+            const formData = new URLSearchParams();
+            formData.append('name_en', nameEnInput.value);
+            formData.append('name_de', nameDeInput.value);
+            formData.append('name_es', nameEsInput.value);
+            formData.append('description_en', descEnInput.value);
+            formData.append('description_de', descDeInput.value);
+            formData.append('description_es', descEsInput.value);
+            formData.append('location', locationInput.value);
+            formData.append('visible_characters', charactersInput.value);
+            formData.append('x', x);
+            formData.append('y', y);
+
+            const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+            if (gameState && gameState.sessionToken) {
+              headers['X-Session-Token'] = gameState.sessionToken;
+            }
+
+            const res = await fetch(`${API_BASE}/screenshots/${currentScreenshot.id}`, {
+              method: 'PUT',
+              headers,
+              body: formData.toString(),
+              credentials: 'same-origin'
+            });
+
+            const data = await res.json();
+            if (data.success) {
+              alert('Screenshot updated successfully');
+              clearForm();
+              await loadScreenshots();
+              // Refresh map markers
+              if (typeof loadAndDisplayScreenshots === 'function') {
+                loadAndDisplayScreenshots();
+              }
+            } else {
+              alert('Failed to update screenshot: ' + (data.error || 'Unknown error'));
+            }
+          } else {
+            // Create new screenshot
+            if (!fileInput.files[0]) {
+              alert('Please select a screenshot file');
+              return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('name_en', nameEnInput.value);
+            formData.append('name_de', nameDeInput.value);
+            formData.append('name_es', nameEsInput.value);
+            formData.append('description_en', descEnInput.value);
+            formData.append('description_de', descDeInput.value);
+            formData.append('description_es', descEsInput.value);
+            formData.append('location', locationInput.value);
+            formData.append('visible_characters', charactersInput.value);
+            formData.append('x', x);
+            formData.append('y', y);
+
+            const headers = {};
+            if (gameState && gameState.sessionToken) {
+              headers['X-Session-Token'] = gameState.sessionToken;
+            }
+
+            const res = await fetch(`${API_BASE}/screenshots`, {
+              method: 'POST',
+              headers,
+              body: formData,
+              credentials: 'same-origin'
+            });
+
+            const data = await res.json();
+            if (data.success) {
+              alert('Screenshot added successfully');
+              clearForm();
+              await loadScreenshots();
+              // Refresh map markers
+              if (typeof loadAndDisplayScreenshots === 'function') {
+                loadAndDisplayScreenshots();
+              }
+            } else {
+              alert('Failed to add screenshot: ' + (data.error || 'Unknown error'));
+            }
+          }
+        } catch (e) {
+          console.error('Failed to save screenshot:', e);
+          alert('Failed to save screenshot: ' + e.message);
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.textContent = currentScreenshot ? 'Update' : 'Save';
+        }
+      });
+
+      // Delete screenshot
+      deleteBtn.addEventListener('click', async () => {
+        if (!currentScreenshot) return;
+        
+        if (!confirm(`Delete screenshot "${currentScreenshot.name?.en || currentScreenshot.name?.de || currentScreenshot.name?.es || 'Unnamed'}"?`)) {
+          return;
+        }
+
+        try {
+          deleteBtn.disabled = true;
+          deleteBtn.textContent = 'Deleting...';
+
+          const headers = {};
+          if (gameState && gameState.sessionToken) {
+            headers['X-Session-Token'] = gameState.sessionToken;
+          }
+
+          const res = await fetch(`${API_BASE}/screenshots/${currentScreenshot.id}`, {
+            method: 'DELETE',
+            headers,
+            credentials: 'same-origin'
+          });
+
+          const data = await res.json();
+          if (data.success) {
+            alert('Screenshot deleted successfully');
+            clearForm();
+            await loadScreenshots();
+            // Refresh map markers
+            if (typeof loadAndDisplayScreenshots === 'function') {
+              loadAndDisplayScreenshots();
+            }
+          } else {
+            alert('Failed to delete screenshot: ' + (data.error || 'Unknown error'));
+          }
+        } catch (e) {
+          console.error('Failed to delete screenshot:', e);
+          alert('Failed to delete screenshot: ' + e.message);
+        } finally {
+          deleteBtn.disabled = false;
+          deleteBtn.textContent = 'Delete';
+        }
+      });
+
+      // Cancel/Close
+      cancelBtn.addEventListener('click', closeModal);
+      closeBtn.addEventListener('click', closeModal);
+
+      // Initialize draggable
+      initDraggable();
+
+      // Expose API
+      window.screenshotManager = {
+        openModal
+      };
     })();
   </script>
 

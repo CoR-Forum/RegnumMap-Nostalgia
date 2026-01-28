@@ -37,6 +37,7 @@ jobs:
           COR_FORUM_DB_NAME: ${{ secrets.COR_FORUM_DB_NAME }}
           COR_FORUM_DB_USER: ${{ secrets.COR_FORUM_DB_USER }}
           COR_FORUM_DB_PASS: ${{ secrets.COR_FORUM_DB_PASS }}
+          SCREENSHOTS_API_KEY: ${{ secrets.SCREENSHOTS_API_KEY }}
         run: |
           set -euo pipefail
           SSH_PATH="${SSH_PATH}"
@@ -44,7 +45,7 @@ jobs:
           REMOTE_DIR="${SSH_PATH#*:}"
           echo "Creating .env file on $REMOTE_HOST"
           # Write multiple variables atomically on the remote host
-          ssh -o StrictHostKeyChecking=no "$REMOTE_HOST" "printf 'COR_FORUM_API_KEY=%s\nCORS_ALLOWED_ORIGINS=%s\nCOR_FORUM_DB_HOST=%s\nCOR_FORUM_DB_PORT=%s\nCOR_FORUM_DB_NAME=%s\nCOR_FORUM_DB_USER=%s\nCOR_FORUM_DB_PASS=%s\n' \"$COR_FORUM_API_KEY\" \"$CORS_ALLOWED_ORIGINS\" \"$COR_FORUM_DB_HOST\" \"$COR_FORUM_DB_PORT\" \"$COR_FORUM_DB_NAME\" \"$COR_FORUM_DB_USER\" \"$COR_FORUM_DB_PASS\" > \"$REMOTE_DIR/.env\""
+          ssh -o StrictHostKeyChecking=no "$REMOTE_HOST" "printf 'COR_FORUM_API_KEY=%s\nCORS_ALLOWED_ORIGINS=%s\nCOR_FORUM_DB_HOST=%s\nCOR_FORUM_DB_PORT=%s\nCOR_FORUM_DB_NAME=%s\nCOR_FORUM_DB_USER=%s\nCOR_FORUM_DB_PASS=%s\nSCREENSHOTS_API_KEY=%s\n' \"$COR_FORUM_API_KEY\" \"$CORS_ALLOWED_ORIGINS\" \"$COR_FORUM_DB_HOST\" \"$COR_FORUM_DB_PORT\" \"$COR_FORUM_DB_NAME\" \"$COR_FORUM_DB_USER\" \"$COR_FORUM_DB_PASS\" \"$SCREENSHOTS_API_KEY\" > \"$REMOTE_DIR/.env\""
 
       - name: Restart docker compose on remote
         env:

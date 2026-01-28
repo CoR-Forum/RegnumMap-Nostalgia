@@ -9,7 +9,6 @@ if (!empty($allowedOrigins)) {
         header('Access-Control-Allow-Origin: ' . $origin);
     }
 } else {
-    // No whitelist configured — keep previous behavior (wildcard). Set this in production!
     header('Access-Control-Allow-Origin: *');
 }
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
@@ -24,6 +23,10 @@ define('DB_PATH', __DIR__ . '/database.sqlite');
 define('FORUM_API_URL', 'https://cor-forum.de/api.php');
 define('FORUM_API_KEY', getenv('COR_FORUM_API_KEY') ?: '');
 define('SESSION_DURATION', 86400); // 24 hours
+
+// Screenshots API
+define('SCREENSHOTS_API_URL', 'https://cor-forum.de/regnum/RegnumNostalgia/screenshots_api.php');
+define('SCREENSHOTS_API_KEY', getenv('SCREENSHOTS_API_KEY') ?: '');
 
 // Forum MySQL connection (used for shoutbox read/write)
 define('FORUM_DB_HOST', getenv('COR_FORUM_DB_HOST') ?: 'localhost');
@@ -270,6 +273,14 @@ if ($path === '/login' && $requestMethod === 'POST') {
     handleGetShoutbox();
 } elseif ($path === '/shoutbox' && $requestMethod === 'POST') {
     handlePostShoutbox();
+} elseif ($path === '/screenshots' && $requestMethod === 'GET') {
+    handleGetScreenshots();
+} elseif ($path === '/screenshots' && $requestMethod === 'POST') {
+    handleAddScreenshot();
+} elseif (preg_match('#^/screenshots/(\d+)$#', $path, $matches) && $requestMethod === 'PUT') {
+    handleUpdateScreenshot($matches[1]);
+} elseif (preg_match('#^/screenshots/(\d+)$#', $path, $matches) && $requestMethod === 'DELETE') {
+    handleDeleteScreenshot($matches[1]);
 } else {
     respondError('Endpoint not found', 404);
 }
@@ -1505,4 +1516,290 @@ function handlePostShoutbox() {
         $db->close();
         respondError('Insert failed: ' . $err, 500);
     }
+}
+
+/* ================================================================
+    SCREENSHOTS: Manage screenshot metadata and file uploads
+================================================================ */
+
+function getScreenshotsFilePath() {
+    // Use /var/www/public when in Docker, fallback to relative path for local dev
+    $dockerPath = '/var/www/api/screenshots.json';
+    $localPath = __DIR__ . '/../api/screenshots.json';
+    return file_exists($dockerPath) || is_dir('/var/www/api') ? $dockerPath : $localPath;
+}
+
+function loadScreenshots() {
+    $path = getScreenshotsFilePath();
+    if (!file_exists($path)) {
+        return [];
+    }
+    $json = file_get_contents($path);
+    $data = json_decode($json, true);
+    return is_array($data) ? $data : [];
+}
+
+function saveScreenshots($screenshots) {
+    $path = getScreenshotsFilePath();
+    $json = json_encode($screenshots, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    return file_put_contents($path, $json) !== false;
+}
+
+function sanitizeFilename($name) {
+    // Replace spaces, dots, commas, and other special chars with hyphens
+    $name = preg_replace('/[^a-zA-Z0-9_-]/', '-', $name);
+    // Remove multiple consecutive hyphens
+    $name = preg_replace('/-+/', '-', $name);
+    // Trim hyphens from start/end
+    return trim($name, '-');
+}
+
+function handleGetScreenshots() {
+    $session = validateSession();
+    $screenshots = loadScreenshots();
+    respondSuccess(['screenshots' => $screenshots]);
+}
+
+function handleAddScreenshot() {
+    $session = validateSession();
+    
+    // Parse form data
+    $name_en = trim($_POST['name_en'] ?? '');
+    $name_de = trim($_POST['name_de'] ?? '');
+    $name_es = trim($_POST['name_es'] ?? '');
+    $description_en = trim($_POST['description_en'] ?? '');
+    $description_de = trim($_POST['description_de'] ?? '');
+    $description_es = trim($_POST['description_es'] ?? '');
+    $location = trim($_POST['location'] ?? '');
+    $visible_characters = trim($_POST['visible_characters'] ?? '');
+    $x = isset($_POST['x']) ? (int)$_POST['x'] : null;
+    $y = isset($_POST['y']) ? (int)$_POST['y'] : null;
+    
+    // Validate required fields
+    if ($x === null || $y === null) {
+        respondError('X and Y coordinates are required');
+    }
+    
+    // Handle file upload
+    if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+        $errorMsg = 'Screenshot file is required';
+        if (isset($_FILES['file']['error'])) {
+            switch ($_FILES['file']['error']) {
+                case UPLOAD_ERR_INI_SIZE:
+                case UPLOAD_ERR_FORM_SIZE:
+                    $errorMsg = 'File is too large';
+                    break;
+                case UPLOAD_ERR_PARTIAL:
+                    $errorMsg = 'File was only partially uploaded';
+                    break;
+                case UPLOAD_ERR_NO_FILE:
+                    $errorMsg = 'No file was uploaded';
+                    break;
+                case UPLOAD_ERR_NO_TMP_DIR:
+                    $errorMsg = 'Missing temporary folder';
+                    break;
+                case UPLOAD_ERR_CANT_WRITE:
+                    $errorMsg = 'Failed to write file to disk';
+                    break;
+            }
+        }
+        respondError($errorMsg);
+    }
+    
+    $file = $_FILES['file'];
+    
+    // Get file extension and validate
+    $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+    
+    if (!in_array($extension, $allowedExtensions)) {
+        respondError('Invalid file type. Allowed: jpg, jpeg, png, gif, webp');
+    }
+    
+    // Determine filename: use name_en, name_de, name_es, or original filename
+    $baseName = $name_en ?: ($name_de ?: ($name_es ?: pathinfo($file['name'], PATHINFO_FILENAME)));
+    $baseName = sanitizeFilename($baseName);
+    $filename = $baseName . '.' . $extension;
+    
+    // Upload file to external API
+    // API expects: ?action=upload, field name 'screenshot', optional 'name' field, X-API-KEY header
+    $apiUrl = SCREENSHOTS_API_URL . '?action=upload';
+    $ch = curl_init($apiUrl);
+    
+    $postFields = [
+        'screenshot' => new CURLFile($file['tmp_name'], $file['type'], $filename),
+        'name' => $filename
+    ];
+    
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $postFields,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_HTTPHEADER => [
+            'X-API-KEY: ' . SCREENSHOTS_API_KEY
+        ]
+    ]);
+    
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlError = curl_error($ch);
+    curl_close($ch);
+    
+    if ($httpCode !== 200 || !$response) {
+        error_log('Screenshot upload failed: HTTP ' . $httpCode . ', Error: ' . $curlError . ', Response: ' . $response);
+        respondError('Failed to upload screenshot to server. HTTP ' . $httpCode . ': ' . ($curlError ?: 'Unknown error'), 500);
+    }
+    
+    $uploadResult = json_decode($response, true);
+    if (!$uploadResult || !isset($uploadResult['ok']) || !$uploadResult['ok']) {
+        $errorMsg = isset($uploadResult['error']) ? $uploadResult['error'] : 'Unknown upload error';
+        error_log('Screenshot upload API error: ' . $errorMsg . ', Raw response: ' . $response);
+        respondError('Failed to upload screenshot: ' . $errorMsg, 500);
+    }
+    
+    // Get the uploaded filename
+    $uploadedFilename = isset($uploadResult['saved_as']) ? $uploadResult['saved_as'] : $filename;
+    
+    // Load existing screenshots
+    $screenshots = loadScreenshots();
+    
+    // Generate new ID
+    $maxId = 0;
+    foreach ($screenshots as $s) {
+        if (isset($s['id']) && $s['id'] > $maxId) {
+            $maxId = $s['id'];
+        }
+    }
+    $newId = $maxId + 1;
+    
+    // Create new screenshot entry
+    $newScreenshot = [
+        'id' => $newId,
+        'filename' => $uploadedFilename,
+        'name' => [
+            'en' => $name_en ?: null,
+            'de' => $name_de ?: null,
+            'es' => $name_es ?: null
+        ],
+        'description' => [
+            'en' => $description_en ?: null,
+            'de' => $description_de ?: null,
+            'es' => $description_es ?: null
+        ],
+        'location' => $location ?: null,
+        'visibleCharacters' => $visible_characters ?: null,
+        'x' => $x,
+        'y' => $y,
+        'uploadedBy' => $session['user_id'],
+        'uploadedAt' => now()
+    ];
+    
+    // Add to list and save
+    $screenshots[] = $newScreenshot;
+    
+    if (!saveScreenshots($screenshots)) {
+        respondError('Failed to save screenshot metadata', 500);
+    }
+    
+    respondSuccess(['screenshot' => $newScreenshot]);
+}
+
+function handleUpdateScreenshot($id) {
+    $session = validateSession();
+    $id = (int)$id;
+    
+    // Parse form data
+    $input = file_get_contents('php://input');
+    parse_str($input, $_PUT);
+    
+    $name_en = trim($_PUT['name_en'] ?? '');
+    $name_de = trim($_PUT['name_de'] ?? '');
+    $name_es = trim($_PUT['name_es'] ?? '');
+    $description_en = trim($_PUT['description_en'] ?? '');
+    $description_de = trim($_PUT['description_de'] ?? '');
+    $description_es = trim($_PUT['description_es'] ?? '');
+    $location = trim($_PUT['location'] ?? '');
+    $visible_characters = trim($_PUT['visible_characters'] ?? '');
+    $x = isset($_PUT['x']) ? (int)$_PUT['x'] : null;
+    $y = isset($_PUT['y']) ? (int)$_PUT['y'] : null;
+    
+    // Validate required fields
+    if ($x === null || $y === null) {
+        respondError('X and Y coordinates are required');
+    }
+    
+    // Load screenshots
+    $screenshots = loadScreenshots();
+    $found = false;
+    
+    foreach ($screenshots as &$screenshot) {
+        if ($screenshot['id'] === $id) {
+            $found = true;
+            
+            // Update fields
+            $screenshot['name'] = [
+                'en' => $name_en ?: null,
+                'de' => $name_de ?: null,
+                'es' => $name_es ?: null
+            ];
+            $screenshot['description'] = [
+                'en' => $description_en ?: null,
+                'de' => $description_de ?: null,
+                'es' => $description_es ?: null
+            ];
+            $screenshot['location'] = $location ?: null;
+            $screenshot['visibleCharacters'] = $visible_characters ?: null;
+            $screenshot['x'] = $x;
+            $screenshot['y'] = $y;
+            $screenshot['updatedAt'] = now();
+            
+            break;
+        }
+    }
+    
+    if (!$found) {
+        respondError('Screenshot not found', 404);
+    }
+    
+    if (!saveScreenshots($screenshots)) {
+        respondError('Failed to update screenshot metadata', 500);
+    }
+    
+    respondSuccess(['screenshot' => $screenshot]);
+}
+
+function handleDeleteScreenshot($id) {
+    $session = validateSession();
+    $id = (int)$id;
+    
+    // Load screenshots
+    $screenshots = loadScreenshots();
+    $found = false;
+    $deletedScreenshot = null;
+    
+    foreach ($screenshots as $index => $screenshot) {
+        if ($screenshot['id'] === $id) {
+            $found = true;
+            $deletedScreenshot = $screenshot;
+            
+            // Note: External API doesn't support delete operation
+            // Files remain on the server but metadata is removed from local JSON
+            // Consider implementing a cleanup script or using the rename API to move to trash folder
+            
+            // Remove from array
+            array_splice($screenshots, $index, 1);
+            break;
+        }
+    }
+    
+    if (!$found) {
+        respondError('Screenshot not found', 404);
+    }
+    
+    if (!saveScreenshots($screenshots)) {
+        respondError('Failed to update screenshot metadata', 500);
+    }
+    
+    respondSuccess(['message' => 'Screenshot deleted', 'screenshot' => $deletedScreenshot]);
 }

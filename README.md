@@ -47,6 +47,7 @@ cd regnum-nostalgia
 2. **Configure environment** (create `.env` file):
 ```env
 COR_FORUM_API_KEY=your_api_key_here
+SCREENSHOTS_API_KEY=your_screenshots_api_key_here
 CORS_ALLOWED_ORIGINS=http://localhost:8321
 ```
 

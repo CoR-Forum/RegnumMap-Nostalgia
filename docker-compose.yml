@@ -15,6 +15,7 @@ services:
     image: php:8.2-fpm-alpine
     volumes:
       - ./api:/var/www/api
+      - ./public:/var/www/public
     working_dir: /var/www/api
     env_file:
       - .env
