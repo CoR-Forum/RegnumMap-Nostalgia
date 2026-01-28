@@ -55,5 +55,12 @@ echo "Starting walker worker (daemon mode)..."
 /usr/local/bin/php /var/www/api/cron/process-walking.php --daemon >> /var/log/walker.log 2>&1 &
 echo "Walker worker started; logs: /var/log/walker.log"
 
+# Start level calculation cron (updates player.level every 10s)
+chmod +x /var/www/api/cron.php || true
+touch /var/log/level-cron.log || true
+echo "Starting level cron (background)..."
+/usr/local/bin/php /var/www/api/cron.php >> /var/log/level-cron.log 2>&1 &
+echo "Level cron started; logs: /var/log/level-cron.log"
+
 # Start PHP-FPM
 exec php-fpm

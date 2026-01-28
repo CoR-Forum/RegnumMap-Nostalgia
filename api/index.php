@@ -362,7 +362,7 @@ function handleGetPosition() {
     }
 
     $db = getDB();
-    $stmt = $db->prepare('SELECT x, y, realm, health, max_health, mana, max_mana, xp, intelligence, dexterity, concentration, strength, constitution FROM players WHERE user_id = ?');
+    $stmt = $db->prepare('SELECT x, y, realm, health, max_health, mana, max_mana, xp, level, intelligence, dexterity, concentration, strength, constitution FROM players WHERE user_id = ?');
     $stmt->execute([$session['user_id']]);
     $player = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -409,7 +409,7 @@ function handleGetPosition() {
         'mana' => (int)$player['mana'],
         'maxMana' => (int)$player['max_mana'],
         'xp' => $xpVal,
-        'level' => xpToLevel($xpVal),
+        'level' => isset($player['level']) ? (int)$player['level'] : xpToLevel($xpVal),
         'xpToNext' => $xpToNext,
         'stats' => [
             'intelligence' => isset($player['intelligence']) ? (int)$player['intelligence'] : 20,
@@ -464,13 +464,14 @@ function handleGetOnlinePlayers() {
 
     $db = getDB();
     // Get players active within last 5 seconds
-    $stmt = $db->prepare('SELECT user_id, username, realm, x, y, health, max_health, mana, max_mana, xp, intelligence, dexterity, concentration, strength, constitution, last_active FROM players WHERE last_active > ?');
+    $stmt = $db->prepare('SELECT user_id, username, realm, x, y, health, max_health, mana, max_mana, xp, level, intelligence, dexterity, concentration, strength, constitution, last_active FROM players WHERE last_active > ?');
     $stmt->execute([now() - 5]);
     $players = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $result = [];
     foreach ($players as $player) {
         $pxp = isset($player['xp']) ? (int)$player['xp'] : 0;
+        $plevel = isset($player['level']) ? (int)$player['level'] : xpToLevel($pxp);
         $result[] = [
             'userId' => (int)$player['user_id'],
             'username' => $player['username'],
@@ -480,7 +481,7 @@ function handleGetOnlinePlayers() {
             'health' => (int)$player['health'],
             'maxHealth' => (int)$player['max_health'],
             'xp' => $pxp,
-            'level' => xpToLevel($pxp),
+            'level' => $plevel,
             'stats' => [
                 'intelligence' => isset($player['intelligence']) ? (int)$player['intelligence'] : 20,
                 'dexterity' => isset($player['dexterity']) ? (int)$player['dexterity'] : 20,

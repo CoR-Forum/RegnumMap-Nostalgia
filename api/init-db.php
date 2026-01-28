@@ -40,6 +40,7 @@ try {
             mana INTEGER NOT NULL DEFAULT 200,
             max_mana INTEGER NOT NULL DEFAULT 200,
             xp INTEGER NOT NULL DEFAULT 0,
+            level INTEGER NOT NULL DEFAULT 1,
             intelligence INTEGER NOT NULL DEFAULT 20,
             dexterity INTEGER NOT NULL DEFAULT 20,
             concentration INTEGER NOT NULL DEFAULT 20,
@@ -318,7 +319,7 @@ try {
     echo "Database location: " . DB_PATH . "\n";
     echo "\nTables created:\n";
     echo "  - sessions (session_id, user_id, username, realm, created_at, expires_at, last_activity, fingerprint)\n";
-    echo "  - players (user_id, username, realm, x, y, health, max_health, mana, max_mana, xp, intelligence, dexterity, concentration, strength, constitution, last_active)\n";
+    echo "  - players (user_id, username, realm, x, y, health, max_health, mana, max_mana, xp, level, intelligence, dexterity, concentration, strength, constitution, last_active)\n";
     echo "  - territories (territory_id, realm, name, type, health, x, y, owner_realm, owner_players, contested, contested_since)\n";
     echo "  - superbosses (boss_id, name, health, max_health, x, y, last_attacked, respawn_time)\n";
     echo "  - items (item_id, name, type, description, stats, rarity, stackable, equipment_slot)\n";
