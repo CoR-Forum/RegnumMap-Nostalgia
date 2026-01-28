@@ -276,33 +276,33 @@ try {
         ['Steel Sword', 'weapon', 'A sturdy steel sword', '{"damage": 25, "speed": 1.3}', 'uncommon', 0, 3, 'weapon_right', 'item-long-sword.png'],
 
         // Off-hand (left hand) - shields / secondary weapons
-        ['Wooden Shield', 'armor', 'A simple wooden shield', '{"defense": 10}', 'common', 0, 1, 'weapon_left', 'item-wooden-shield.png'],
-        ['Tower Shield', 'armor', 'Large shield offering excellent protection', '{"defense": 22}', 'uncommon', 0, 4, 'weapon_left', 'item-metal-shield.png'],
+        ['Wooden Shield', 'armor', 'A simple wooden shield', '{"armor": 10}', 'common', 0, 1, 'weapon_left', 'item-wooden-shield.png'],
+        ['Tower Shield', 'armor', 'Large shield offering excellent protection', '{"armor": 22}', 'uncommon', 0, 4, 'weapon_left', 'item-metal-shield.png'],
 
         // Head
-        ['Leather Cap', 'armor', 'A light leather cap', '{"defense": 5}', 'common', 0, 1, 'head', 'item-leather-cap.png'],
-        ['Iron Helmet', 'armor', 'A sturdy iron helmet', '{"defense": 12}', 'uncommon', 0, 3, 'head', 'item-iron-helmet.png'],
+        ['Leather Cap', 'armor', 'A light leather cap', '{"armor": 5}', 'common', 0, 1, 'head', 'item-leather-cap.png'],
+        ['Iron Helmet', 'armor', 'A sturdy iron helmet', '{"armor": 12}', 'uncommon', 0, 3, 'head', 'item-iron-helmet.png'],
 
         // Body
-        ['Leather Tunic', 'armor', 'Light leather armor for torso', '{"defense": 8}', 'common', 0, 1, 'body', 'item-leather-tunic.png'],
-        ['Iron Armor', 'armor', 'Basic iron chest armor', '{"defense": 20, "health": 50}', 'common', 0, 4, 'body', 'item-iron-armor.png'],
-        ['Plate Armor', 'armor', 'Heavy plate armor', '{"defense": 40, "health": 150}', 'epic', 0, 8, 'body', 'item-plate-armor.png'],
+        ['Leather Tunic', 'armor', 'Light leather armor for torso', '{"armor": 8}', 'common', 0, 1, 'body', 'item-leather-tunic.png'],
+        ['Iron Armor', 'armor', 'Basic iron chest armor', '{"armor": 20, "health": 50}', 'common', 0, 4, 'body', 'item-iron-armor.png'],
+        ['Plate Armor', 'armor', 'Heavy plate armor', '{"armor": 40, "health": 150}', 'epic', 0, 8, 'body', 'item-plate-armor.png'],
 
         // Hands
-        ['Leather Gloves', 'armor', 'Simple leather gloves', '{"defense": 3}', 'common', 0, 1, 'hands', 'item-leather-gloves.png'],
-        ['Iron Gauntlets', 'armor', 'Sturdy iron gauntlets', '{"defense": 8}', 'uncommon', 0, 3, 'hands', 'item-iron-gauntlets.png'],
+        ['Leather Gloves', 'armor', 'Simple leather gloves', '{"armor": 3}', 'common', 0, 1, 'hands', 'item-leather-gloves.png'],
+        ['Iron Gauntlets', 'armor', 'Sturdy iron gauntlets', '{"armor": 8}', 'uncommon', 0, 3, 'hands', 'item-iron-gauntlets.png'],
 
         // Shoulders
-        ['Leather Pauldrons', 'armor', 'Small shoulder guards', '{"defense": 4}', 'common', 0, 1, 'shoulders', 'item-leather-pauldrons.png'],
-        ['Steel Pauldrons', 'armor', 'Reinforced shoulder armor', '{"defense": 10}', 'rare', 0, 4, 'shoulders', 'item-steel-pauldrons.png'],
+        ['Leather Pauldrons', 'armor', 'Small shoulder guards', '{"armor": 4}', 'common', 0, 1, 'shoulders', 'item-leather-pauldrons.png'],
+        ['Steel Pauldrons', 'armor', 'Reinforced shoulder armor', '{"armor": 10}', 'rare', 0, 4, 'shoulders', 'item-steel-pauldrons.png'],
 
         // Legs
-        ['Leather Leggings', 'armor', 'Light leg protection', '{"defense": 6}', 'common', 0, 1, 'legs', 'item-leather-leggings.png'],
-        ['Iron Leggings', 'armor', 'Reinforced leg armor', '{"defense": 14}', 'uncommon', 0, 3, 'legs', 'item-iron-leggings.png'],
+        ['Leather Leggings', 'armor', 'Light leg protection', '{"armor": 6}', 'common', 0, 1, 'legs', 'item-leather-leggings.png'],
+        ['Iron Leggings', 'armor', 'Reinforced leg armor', '{"armor": 14}', 'uncommon', 0, 3, 'legs', 'item-iron-leggings.png'],
 
         // Rings (right/left)
-        ['Silver Ring', 'misc', 'A simple silver ring', '{"defense": 1}', 'common', 0, 1, 'ring_right', 'item-silver-ring.png'],
-        ['Gold Ring', 'misc', 'A ring of fine gold', '{"defense": 2}', 'uncommon', 0, 2, 'ring_left', 'item-gold-ring.png'],
+        ['Silver Ring', 'misc', 'A simple silver ring', '{"armor": 1}', 'common', 0, 1, 'ring_right', 'item-silver-ring.png'],
+        ['Gold Ring', 'misc', 'A ring of fine gold', '{"armor": 2}', 'uncommon', 0, 2, 'ring_left', 'item-gold-ring.png'],
 
         // Amulets
         ['Silver Amulet', 'misc', 'A charm worn around the neck', '{"mana_boost": 5}', 'common', 0, 1, 'amulet', 'item-silver-amulet.png'],
