@@ -108,6 +108,11 @@
     }
     #modal-overlay.hidden{ display: none; }
 
+    /* Hide all UI elements until the user is authenticated. Keep the modal overlay and background map visible. */
+    body:not(.authenticated) > :not(#modal-overlay):not(#map):not(script):not(style) {
+      display: none !important;
+    }
+
     .modal-content{
       background: transparent;
       border: none;
@@ -1850,10 +1855,13 @@
       healthFill.style.width = `${healthPercent}%`;
       healthText.textContent = `${gameState.health}/${gameState.maxHealth}`;
       
-      // Update health color: own player is always considered an ally (green)
+      // Ensure the overlay player health fill uses the UI border-image and remains visible
       healthFill.className = 'territory-health-fill';
-      // Own player -> ally
-      healthFill.classList.add('health-ally');
+      healthFill.style.backgroundColor = 'transparent';
+      healthFill.style.borderWidth = '0 2px 0 2px';
+      healthFill.style.borderStyle = 'solid';
+      healthFill.style.boxSizing = 'border-box';
+      healthFill.style.borderImage = "url('assets/ui-v1/ui-bar-health.png') 0 2 0 2 fill / 0 2px 0 2px / 0 stretch";
 
       // Update mana bar
       const manaPercent = (gameState.mana / gameState.maxMana) * 100;
@@ -1900,6 +1908,23 @@
         gameState.level = typeof data.level !== 'undefined' ? data.level : 1;
         gameState.xpToNext = typeof data.xpToNext !== 'undefined' ? data.xpToNext : 0;
         gameState.stats = data.stats || { intelligence:20, dexterity:20, concentration:20, strength:20, constitution:20 };
+
+        // Reveal main UI now that session is validated
+        try { document.body.classList.add('authenticated'); } catch(e){}
+        // Allow layout to settle, then invalidate Leaflet size and re-center map
+        try {
+          setTimeout(() => {
+            try {
+              if (typeof map !== 'undefined' && map && typeof map.invalidateSize === 'function') {
+                map.invalidateSize();
+                if (gameState && gameState.position) {
+                  const latLng = [totalH - gameState.position.y, gameState.position.x];
+                  try { map.setView(latLng, map.getZoom()); } catch(e){}
+                }
+              }
+            } catch (e) {}
+          }, 100);
+        } catch(e) {}
 
         hideModal();
         showPlayerInfo();
