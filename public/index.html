@@ -177,6 +177,18 @@
       padding: 8px !important;
       border-radius: 4px !important;
     }
+    /* Player tooltip styling */
+    .player-tooltip .leaflet-tooltip-content{
+      background: linear-gradient(180deg, rgba(20,22,26,0.98), rgba(10,12,15,0.98));
+      color: #e6e6e6;
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      border: 1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.6);
+      white-space: nowrap;
+      pointer-events: none;
+    }
     .screenshot-tooltip .leaflet-tooltip-content {
       margin: 0 !important;
     }
@@ -2563,6 +2575,7 @@
           
           const marker = L.marker(latLng, { icon: customIcon }).addTo(map);
           marker.bindPopup(`<b>${player.username}</b><br>Realm: ${player.realm}<br>Health: ${player.health}/${player.maxHealth}`);
+          marker.bindTooltip(`${player.username}`, { permanent: false, direction: 'top', className: 'player-tooltip', offset: [0, -10] });
           gameState.otherPlayers.set(player.userId, marker);
         } else {
           // Create new marker with health bar
@@ -2582,6 +2595,7 @@
 
           const marker = L.marker(latLng, { icon: customIcon }).addTo(map);
           marker.bindPopup(`<b>${player.username}</b><br>Realm: ${player.realm}<br>Health: ${player.health}/${player.maxHealth}`);
+          marker.bindTooltip(`${player.username}`, { permanent: false, direction: 'top', className: 'player-tooltip', offset: [0, -10] });
           gameState.otherPlayers.set(player.userId, marker);
         }
       });
