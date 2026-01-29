@@ -1266,6 +1266,7 @@
       }
 
       const response = await fetch(API_BASE + endpoint, {
+        cache: 'no-store',
         ...options,
         headers
       });
@@ -2795,7 +2796,8 @@
         const res = await fetch('/api/screenshots', { 
           method: 'GET', 
           headers, 
-          credentials: 'same-origin' 
+          credentials: 'same-origin',
+          cache: 'no-store'
         });
         const data = await res.json();
         if (data.success && data.screenshots) {
@@ -2932,7 +2934,7 @@
           if (typeof gameState !== 'undefined' && gameState && gameState.sessionToken) {
             headers['X-Session-Token'] = gameState.sessionToken;
           }
-          const res = await fetch('/api/player/position', { credentials: 'same-origin', headers });
+          const res = await fetch('/api/player/position', { credentials: 'same-origin', headers, cache: 'no-store' });
           if(!res.ok) return;
           const data = await res.json();
           if(!data || !data.success) return;
