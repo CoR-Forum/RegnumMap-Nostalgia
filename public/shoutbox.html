@@ -1,0 +1,151 @@
+<div id="shoutbox-window" class="ui-window" style="position: absolute; left: 0px; bottom: 30px; width: 300px; z-index: 20005; display: flex; flex-direction: column; font-family: 'MS Sans Serif', Arial, sans-serif;">
+  <div id="shoutbox-header" class="ui-window-titlebar" style="display:flex; justify-content: space-between; align-items: center; user-select: none;">
+    <h2 style="margin:0; flex:1; font-size:11px; font-weight:700; color:#ffffff; text-align: center;">Chat</h2>
+    <button id="shoutbox-close-btn" class="ui-window-close-btn" title="Close"></button>
+  </div>
+
+  <div class="ui-window-body" style="padding:8px; display:flex; flex-direction:column; gap:4px;">
+    <div id="sbMessages" style="height:140px; overflow-y:auto; overflow-x:hidden; padding:4px; background: transparent; color: #e6e6e6; font-size:13px; word-wrap: break-word; overflow-wrap: break-word;"></div>
+
+    <div style="display:flex; gap:4px; align-items:center;">
+      <input id="sbMessage" type="text" placeholder="Message" style="flex:1; background:#171717; border:1px solid #333; color:#e6e6e6; padding:4px; font-size:13px; border-radius:4px" />
+      <button id="sbSend" class="btn" style="flex:0 0 auto; width:64px">Send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  (async function(){
+    const sbMessages = document.getElementById('sbMessages');
+    const sbSend = document.getElementById('sbSend');
+    const sbMessage = document.getElementById('sbMessage');
+    const sbWin = document.getElementById('shoutbox-window');
+    let currentUsername = null;
+    let lastMessageId = 0;
+    let lastMessageTime = 0;
+
+    try{
+      const res = await fetch('/api/player/position', { method: 'GET', credentials: 'same-origin' });
+      if (res.ok) {
+        const pd = await res.json();
+        if (pd && pd.success && pd.username) currentUsername = pd.username;
+      }
+    }catch(e){}
+
+    try{ const u = localStorage.getItem('shoutbox.username'); if(!currentUsername && u) currentUsername = u; }catch(e){}
+
+    function renderMessages(messages){
+      sbMessages.innerHTML = '';
+      messages.forEach(m=>{
+        const el = document.createElement('div');
+        el.style.marginBottom = '2px';
+        el.style.wordWrap = 'break-word';
+        el.style.overflowWrap = 'break-word';
+        
+        let timeStr = '';
+        if(m.time) {
+          try{ 
+            const d = new Date(m.time * 1000);
+            timeStr = d.toLocaleTimeString('en-US', {hour: '2-digit', minute: '2-digit', hour12: false});
+          }catch(e){}
+        }
+        
+        const username = m.username || 'anon';
+        let message = m.message || '';
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = message;
+        const imgs = tempDiv.querySelectorAll('img');
+        imgs.forEach(img => {
+          img.style.maxWidth = '16px';
+          img.style.maxHeight = '16px';
+          img.style.verticalAlign = 'middle';
+          img.style.display = 'inline';
+        });
+        const blockEls = tempDiv.querySelectorAll('div, p, br');
+        blockEls.forEach(b => {
+          if(b.tagName === 'BR') b.replaceWith(' ');
+          else { const span = document.createElement('span'); span.innerHTML = b.innerHTML; b.replaceWith(span); }
+        });
+        message = tempDiv.innerHTML;
+        
+        el.innerHTML = `<span style="opacity:0.7; font-size:11px;">[${timeStr}]</span> <span style="font-weight:700; color:#ffd27a;">${username}</span>: <span style="display:inline;">${message}</span>`;
+        sbMessages.appendChild(el);
+      });
+      sbMessages.scrollTop = sbMessages.scrollHeight;
+    }
+
+    async function fetchMessages(){
+      try{
+        const headers = {};
+        if (gameState && gameState.sessionToken) headers['X-Session-Token'] = gameState.sessionToken;
+        const res = await fetch('/api/shoutbox', { method: 'GET', headers, credentials: 'same-origin' });
+        const data = await res.json();
+        if(!(data && data.success && Array.isArray(data.messages))) return;
+
+        const msgs = data.messages;
+        if(msgs.length === 0){
+          if(sbMessages.children.length > 0){
+            renderMessages(msgs);
+            lastMessageId = 0; lastMessageTime = 0;
+          }
+          return;
+        }
+
+        const maxId = Math.max(...msgs.map(m => Number(m.id) || 0));
+        const maxTime = Math.max(...msgs.map(m => Number(m.time) || 0));
+
+        if(maxId > 0){
+          if(maxId <= lastMessageId) return;
+          lastMessageId = maxId;
+          lastMessageTime = Math.max(lastMessageTime, maxTime);
+        }else{
+          if(maxTime <= lastMessageTime) return;
+          lastMessageTime = maxTime;
+        }
+
+        renderMessages(msgs);
+      }catch(e){ console.warn('shoutbox fetch failed', e); }
+    }
+
+    async function postMessage(){
+      const message = (sbMessage.value || '').trim();
+      const username = (currentUsername && currentUsername.trim()) ? currentUsername.trim() : 'anon';
+      if(!message) return alert('Please enter a message');
+
+      const form = new URLSearchParams(); form.append('message', message);
+      try{
+        sbSend.disabled = true;
+        const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+        if(gameState && gameState.sessionToken){ headers['X-Session-Token'] = gameState.sessionToken; }
+        const res = await fetch('/api/shoutbox', { method: 'POST', body: form, headers, credentials: 'same-origin' });
+        const data = await res.json();
+        if(data && data.success){ sbMessage.value = ''; fetchMessages(); }
+        else alert(data.error || 'Failed to post');
+      }catch(e){ alert('Failed to post message'); }
+      finally{ sbSend.disabled = false; }
+    }
+
+    sbSend.addEventListener('click', postMessage);
+    sbMessage.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); postMessage(); } });
+
+    let _shoutboxPoll = null;
+    function startShoutboxPolling(){
+      if(_shoutboxPoll) return;
+      fetchMessages();
+      _shoutboxPoll = setInterval(fetchMessages, 5000);
+      window.addEventListener('beforeunload', ()=>{ if(_shoutboxPoll) clearInterval(_shoutboxPoll); });
+    }
+
+    if(document.body.classList && document.body.classList.contains('authenticated')){
+      startShoutboxPolling();
+    } else {
+      const ob = new MutationObserver((records)=>{
+        if(document.body.classList && document.body.classList.contains('authenticated')){
+          ob.disconnect(); startShoutboxPolling();
+        }
+      });
+      try{ ob.observe(document.body, { attributes: true, attributeFilter: ['class'] }); }catch(e){}
+    }
+  })();
+</script>
