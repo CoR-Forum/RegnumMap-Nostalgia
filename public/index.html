@@ -1508,33 +1508,64 @@
     function makeDraggable(winEl, handleEl) {
       if (!winEl || !handleEl) return;
       let isDragging = false;
-      let currentX = 0;
-      let currentY = 0;
-      let initialX = 0;
-      let initialY = 0;
-      let xOffset = 0;
-      let yOffset = 0;
+      let pointerOffsetX = 0;
+      let pointerOffsetY = 0;
+      let winW = 0;
+      let winH = 0;
 
       const dragStart = (e) => {
-        initialX = e.clientX - xOffset;
-        initialY = e.clientY - yOffset;
+        if (e.button && e.button !== 0) return; // only left button
+        const rect = winEl.getBoundingClientRect();
+
+        // Freeze current visual position to explicit left/top so subsequent
+        // drags don't accumulate via transform and windows can be moved
+        // independently without interfering with each other.
+        const computed = window.getComputedStyle(winEl);
+        // If positioned using right/bottom, remove them and set left/top
+        if (computed.right && computed.right !== 'auto') winEl.style.right = 'auto';
+        if (computed.bottom && computed.bottom !== 'auto') winEl.style.bottom = 'auto';
+
+        winEl.style.left = rect.left + 'px';
+        winEl.style.top = rect.top + 'px';
+        winEl.style.transform = '';
+
+        pointerOffsetX = e.clientX - rect.left;
+        pointerOffsetY = e.clientY - rect.top;
+        winW = rect.width;
+        winH = rect.height;
         isDragging = true;
+        document.body.style.userSelect = 'none';
       };
 
       const drag = (e) => {
         if (!isDragging) return;
         e.preventDefault();
-        currentX = e.clientX - initialX;
-        currentY = e.clientY - initialY;
-        xOffset = currentX;
-        yOffset = currentY;
-        setTranslate(currentX, currentY, winEl);
+
+        // Compute proposed left/top such that the pointer maintains its offset
+        let proposedLeft = e.clientX - pointerOffsetX;
+        let proposedTop = e.clientY - pointerOffsetY;
+
+        // Clamp so window stays fully inside viewport
+        const viewportW = window.innerWidth;
+        const viewportH = window.innerHeight;
+        let minLeft = 0;
+        let maxLeft = Math.max(0, viewportW - winW);
+        let minTop = 0;
+        let maxTop = Math.max(0, viewportH - winH);
+
+        if (winW > viewportW) { minLeft = viewportW - winW; maxLeft = 0; }
+        if (winH > viewportH) { minTop = viewportH - winH; maxTop = 0; }
+
+        proposedLeft = Math.min(Math.max(proposedLeft, minLeft), maxLeft);
+        proposedTop = Math.min(Math.max(proposedTop, minTop), maxTop);
+
+        winEl.style.left = Math.round(proposedLeft) + 'px';
+        winEl.style.top = Math.round(proposedTop) + 'px';
       };
 
       const dragEnd = () => {
-        initialX = currentX;
-        initialY = currentY;
         isDragging = false;
+        document.body.style.userSelect = '';
       };
 
       handleEl.addEventListener('mousedown', dragStart);
@@ -1547,6 +1578,25 @@
       if (!win) return;
       const header = headerId ? document.getElementById(headerId) : null;
       const closeBtn = closeId ? document.getElementById(closeId) : null;
+      // Ensure a global window z-index tracker exists and that windows
+      // are placed above UI textures/shoutbox by default.
+      try {
+        if (typeof window.__windowTopZ === 'undefined') window.__windowTopZ = 30000;
+      } catch (e) { window.__windowTopZ = 30000; }
+
+      // If element has an inline z-index that's lower than our base, override it.
+      try {
+        const current = parseInt(win.style.zIndex, 10);
+        if (!current || current < window.__windowTopZ) {
+          win.style.zIndex = (window.__windowTopZ++).toString();
+        }
+      } catch (e) { win.style.zIndex = (window.__windowTopZ++).toString(); }
+
+      // Bring window to front when focused/clicked so stacking works for multiple windows
+      const bringToFront = () => { try { win.style.zIndex = (++window.__windowTopZ).toString(); } catch (e) {} };
+      win.addEventListener('mousedown', bringToFront);
+      if (header) header.addEventListener('mousedown', bringToFront);
+
       if (draggable && header) makeDraggable(win, header);
       if (closeBtn) {
         closeBtn.addEventListener('click', () => {
