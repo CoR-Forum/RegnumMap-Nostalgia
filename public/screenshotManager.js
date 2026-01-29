@@ -178,12 +178,21 @@
     saveBtn.textContent = 'Save';
   }
 
-  function openModal(x, y) {
+  async function openModal(x, y) {
     contextX = x;
     contextY = y;
     clearForm();
-    loadScreenshots();
+    await loadScreenshots();
     modal.style.display = 'flex';
+
+    // Display screenshot markers on the map when the manager is opened
+    if (typeof window.loadAndDisplayScreenshots === 'function') {
+      try {
+        window.loadAndDisplayScreenshots();
+      } catch (e) {
+        console.error('Failed to display screenshots on open:', e);
+      }
+    }
   }
 
   function closeModal() {
