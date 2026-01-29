@@ -7,7 +7,7 @@ define('DB_PORT', getenv('GAME_DB_PORT') ?: 3306);
 define('DB_NAME', getenv('GAME_DB_NAME') ?: 'regnum_nostalgia');
 define('DB_USER', getenv('GAME_DB_USER') ?: 'regnum_user');
 define('DB_PASS', getenv('GAME_DB_PASS') ?: 'regnum_pass');
-define('LEVELS_PATH', __DIR__ . '/levels.json');
+define('LEVELS_PATH', __DIR__ . '/gameData/levels.json');
 
 function loadLevels() {
     static $levels = null;

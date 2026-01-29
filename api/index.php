@@ -102,11 +102,11 @@ function jsonLoadFile($path) {
     return is_array($data) ? $data : null;
 }
 
-// Load levels definitions from api/levels.json (caches in memory)
+// Load levels definitions from api/gameData/levels.json (caches in memory)
 function loadLevels() {
     static $levels = null;
     if ($levels === null) {
-        $data = jsonLoadFile(__DIR__ . '/levels.json');
+        $data = jsonLoadFile(__DIR__ . '/gameData/levels.json');
         if (!is_array($data) || count($data) === 0) {
             $levels = [[ 'level' => 1, 'xp' => 0 ]];
         } else {
@@ -738,7 +738,7 @@ function handleGetSuperbosses() {
 ================================================================ */
 function handleGetPaths() {
     $session = validateSession();
-    $pathsFile = __DIR__ . '/paths.json';
+    $pathsFile = __DIR__ . '/gameData/paths.json';
     if (!is_readable($pathsFile)) {
         respondSuccess(['paths' => []]);
     }
@@ -766,7 +766,7 @@ function handleGetPath() {
     $session = validateSession();
     $name = $_GET['name'] ?? ($_GET['id'] ?? '');
     if ($name === '') respondError('name is required');
-    $data = jsonLoadFile(__DIR__ . '/paths.json');
+    $data = jsonLoadFile(__DIR__ . '/gameData/paths.json');
     if (!is_array($data)) respondError('Path not found', 404);
 
     foreach ($data as $p) {
@@ -791,7 +791,7 @@ function handleGetPath() {
 ================================================================ */
 function handleGetRegions() {
     $session = validateSession();
-    $rdata = jsonLoadFile(__DIR__ . '/regions.json') ?: [];
+    $rdata = jsonLoadFile(__DIR__ . '/gameData/regions.json') ?: [];
 
     $result = [];
     foreach ($rdata as $r) {
@@ -825,7 +825,7 @@ function handleStartMove() {
 
     // Server-side: enforce region walk permissions (prevent clients from bypassing)
     try {
-        $rdata = jsonLoadFile(__DIR__ . '/regions.json');
+        $rdata = jsonLoadFile(__DIR__ . '/gameData/regions.json');
         $regionsExist = is_array($rdata) && count($rdata) > 0;
         $matched = false;
         if ($regionsExist) {
@@ -854,7 +854,7 @@ function handleStartMove() {
     } catch (Exception $e) { /* ignore and continue defensively */ }
 
     // load paths
-    $data = jsonLoadFile(__DIR__ . '/paths.json');
+    $data = jsonLoadFile(__DIR__ . '/gameData/paths.json');
     if (!is_array($data)) respondError('Invalid paths data', 500);
 
     // Build graph of nodes (each point in paths)

@@ -281,9 +281,9 @@ try {
     }
 
     // Seed items (item templates)
-    // If directory api/items/ exists, load and merge all JSON files inside it.
-    // Otherwise require api/items.json (single file).
-    $itemsDir = __DIR__ . '/items';
+    // If directory api/gameData/items/ exists, load and merge all JSON files inside it.
+    // Otherwise require api/gameData/items.json (single file).
+    $itemsDir = __DIR__ . '/gameData/items';
     $items = [];
 
     if (is_dir($itemsDir)) {
@@ -317,23 +317,23 @@ try {
             }
         }
     } else {
-        $itemsFile = __DIR__ . '/items.json';
+        $itemsFile = __DIR__ . '/gameData/items.json';
         if (!file_exists($itemsFile)) {
-            echo "Error: required file api/items.json not found and api/items/ directory does not exist\n";
+            echo "Error: required file api/gameData/items.json not found and api/gameData/items/ directory does not exist\n";
             exit(1);
         }
 
         $json = file_get_contents($itemsFile);
         $decoded = json_decode($json, true);
-        if (!is_array($decoded)) {
-            echo "Error: api/items.json contains invalid JSON or is not an array\n";
+            if (!is_array($decoded)) {
+                echo "Error: api/gameData/items.json contains invalid JSON or is not an array\n";
             exit(1);
         }
 
-        foreach ($decoded as $it) {
+            foreach ($decoded as $it) {
             $stats = isset($it['stats']) ? json_encode($it['stats']) : '{}';
             if (!isset($it['template_key']) || trim((string)$it['template_key']) === '') {
-                echo "Error: missing template_key in api/items.json for item '" . ($it['name'] ?? '') . "'\n";
+                echo "Error: missing template_key in api/gameData/items.json for item '" . ($it['name'] ?? '') . "'\n";
                 exit(1);
             }
             $template_key = $it['template_key'];
