@@ -424,20 +424,17 @@
       overflow: hidden;
       border: 1px solid rgba(255,255,255,0.3);
     }
-    /* Hide health bars visually by default but keep their layout/space. Reveal on hover. */
-    .territory-health-bar,
-    .overlay-bar {
+    /* Hide map-mounted territory health bars by default but keep layout/space. */
+    .territory-health-bar {
       opacity: 0;
       transition: opacity 0.16s ease;
       pointer-events: none; /* don't block map interactions */
     }
-    /* Reveal health bars when hovering markers or the UI overlay */
+    /* Reveal territory health bars when hovering markers or when they receive focus. */
     .custom-territory-marker:hover .territory-health-bar,
     .custom-player-marker:hover .territory-health-bar,
     .custom-territory-marker:focus .territory-health-bar,
-    .custom-player-marker:focus .territory-health-bar,
-    #ui-character-status:hover .overlay-bar,
-    #ui-character-status:focus .overlay-bar {
+    .custom-player-marker:focus .territory-health-bar {
       opacity: 1;
       pointer-events: auto;
     }
@@ -3163,6 +3160,8 @@
     #ui-character-status .ui-character-overlay #player-mana-fill{ position: relative; top: -1px; }
     /* Overlay-specific bar sizing: less wide, taller */
     #ui-character-status .ui-character-overlay .overlay-bar{ flex: 0 0 auto; width: 218px; height: 15px; border-radius: 4px; overflow: hidden; }
+    /* Ensure the top-left character overlay bars are always visible and interactive. */
+    #ui-character-status .ui-character-overlay .overlay-bar { opacity: 1 !important; pointer-events: auto !important; }
     /* Center bar text on top of the bar */
     #ui-character-status .ui-character-overlay .overlay-bar{ position: relative; }
     #ui-character-status .ui-character-overlay .bar-text{ position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font-size:11px; color:#ffffff; text-shadow:0 1px 0 rgba(0,0,0,0.8); pointer-events: none; }
