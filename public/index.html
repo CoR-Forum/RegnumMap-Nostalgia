@@ -2109,8 +2109,8 @@
         // Start polling for superbosses
         startSuperbossesPolling();
 
-        // Load and display screenshots
-        loadAndDisplayScreenshots();
+        // Do not load screenshots automatically on page load.
+        // Screenshots will be loaded and displayed when the Screenshot Manager is opened.
 
         updatePlayerCoords(gameState.position.x, gameState.position.y);
       } catch (error) {

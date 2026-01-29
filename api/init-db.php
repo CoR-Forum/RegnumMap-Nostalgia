@@ -185,17 +185,21 @@ try {
     $db->exec('CREATE INDEX IF NOT EXISTS idx_equipment_user_id ON equipment(user_id)');
 
     // Create walkers table (player movement jobs)
-    $db->exec('
+    $db->exec(" 
         CREATE TABLE IF NOT EXISTS walkers (
             walker_id INT AUTO_INCREMENT PRIMARY KEY,
-            user_id INT NOT NULL UNIQUE,
+            user_id INT NOT NULL,
             positions LONGTEXT NOT NULL,
             current_index INT NOT NULL DEFAULT 0,
             started_at INT NOT NULL,
-            updated_at INT NOT NULL
+            updated_at INT NOT NULL,
+            finished_at INT NULL DEFAULT NULL,
+            status VARCHAR(32) NOT NULL DEFAULT 'new'
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ');
+    ");
     $db->exec('CREATE INDEX IF NOT EXISTS idx_walkers_user_id ON walkers(user_id)');
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_walkers_finished_at ON walkers(finished_at)');
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_walkers_status ON walkers(status)');
 
     // Seed territories with forts, castles, and walls
 
@@ -372,6 +376,7 @@ try {
     echo "  - inventory (inventory_id, user_id, item_id, quantity, acquired_at)\n";
     echo "  - equipment (equipment_id, user_id, head, body, hands, shoulders, legs, weapon_right, weapon_left, ring_right, ring_left, amulet, created_at, updated_at)\n";
     echo "  - server_time (started_at, last_updated, ingame_hour, ingame_minute, tick_seconds)\n";
+    echo "  - walkers (walker_id, user_id, positions, current_index, started_at, updated_at, finished_at)\n";
 } catch (PDOException $e) {
     echo "Error initializing database: " . $e->getMessage() . "\n";
     exit(1);

@@ -37,8 +37,8 @@ function processOnce() {
     $db = getDB();
     $now = time();
 
-    // Fetch active walkers
-    $stmt = $db->prepare('SELECT walker_id, user_id, positions, current_index FROM walkers');
+    // Fetch active walkers (only those actively walking)
+    $stmt = $db->prepare("SELECT walker_id, user_id, positions, current_index FROM walkers WHERE status = 'walking'");
     $stmt->execute();
     $walkers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -49,7 +49,7 @@ function processOnce() {
 
     $updatePlayerStmt = $db->prepare('UPDATE players SET x = ?, y = ?, last_active = ? WHERE user_id = ?');
     $updateWalkerStmt = $db->prepare('UPDATE walkers SET current_index = ?, updated_at = ? WHERE walker_id = ?');
-    $deleteWalkerStmt = $db->prepare('DELETE FROM walkers WHERE walker_id = ?');
+    $finishWalkerStmt = $db->prepare('UPDATE walkers SET current_index = ?, updated_at = ?, finished_at = ?, status = ? WHERE walker_id = ?');
 
     foreach ($walkers as $w) {
         $walkerId = $w['walker_id'];
@@ -58,23 +58,31 @@ function processOnce() {
         $current = (int)$w['current_index'];
 
         if (!is_array($positions) || count($positions) === 0) {
-            // nothing to do, remove
-            $deleteWalkerStmt->execute([$walkerId]);
-            echo "Walker {$walkerId} had no positions — removed.\n";
+            // nothing to do: mark finished so it won't be processed again
+            $db->beginTransaction();
+            try {
+                $finishWalkerStmt->execute([0, $now, $now, 'done', $walkerId]);
+                $db->commit();
+                echo "Walker {$walkerId} had no positions — marked finished.\n";
+            } catch (Exception $e) {
+                $db->rollBack();
+                fwrite(STDERR, "Failed to mark walker {$walkerId} finished: " . $e->getMessage() . "\n");
+            }
             continue;
         }
 
         $nextIndex = $current + 1;
         if ($nextIndex >= count($positions)) {
-            // finish: move player to final position and remove walker
-            $final = $positions[count($positions)-1];
+            // finish: move player to final position and retain walker (mark as at final index)
+            $finalIndex = count($positions) - 1;
+            $final = $positions[$finalIndex];
             $x = (int)$final[0]; $y = (int)$final[1];
             $db->beginTransaction();
             try {
                 $updatePlayerStmt->execute([$x, $y, $now, $userId]);
-                $deleteWalkerStmt->execute([$walkerId]);
+                $finishWalkerStmt->execute([$finalIndex, $now, $now, 'done', $walkerId]);
                 $db->commit();
-                echo "Walker {$walkerId} completed for user {$userId}.\n";
+                echo "Walker {$walkerId} completed and marked finished for user {$userId}.\n";
             } catch (Exception $e) {
                 $db->rollBack();
                 fwrite(STDERR, "Failed to finalize walker {$walkerId}: " . $e->getMessage() . "\n");

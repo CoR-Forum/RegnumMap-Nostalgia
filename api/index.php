@@ -503,9 +503,9 @@ function handleGetPosition() {
         respondError('Player not found', 404);
     }
 
-    // Fetch active walker for this user (if any)
+    // Fetch most recent active walker for this user (if any)
     $walker = null;
-    $stmt = $db->prepare('SELECT positions, current_index FROM walkers WHERE user_id = ? LIMIT 1');
+    $stmt = $db->prepare("SELECT positions, current_index FROM walkers WHERE user_id = ? AND status IN ('new','walking') ORDER BY started_at DESC LIMIT 1");
     $stmt->execute([$session['user_id']]);
     $w = $stmt->fetch(PDO::FETCH_ASSOC);
     if ($w) {
@@ -933,10 +933,20 @@ function handleStartMove() {
     // append final exact target as last step so player reaches clicked location (on path nearest to it)
     $positions[] = [$targetX, $targetY];
 
-    // upsert walker row for user
+    // create a new walker for the user
+    // Rules:
+    // - If the user already has any finished ('done') walk, do not allow a new walk.
+    // - If the user has an active walk ('new' or 'walking'), mark it as 'interrupted_by_new_walk'.
+    // - Insert a new walker row with status 'walking'.
     $now = time();
-    $stmt = $db->prepare('INSERT INTO walkers (user_id, positions, current_index, started_at, updated_at) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE positions = VALUES(positions), current_index = 0, started_at = VALUES(started_at), updated_at = VALUES(updated_at)');
-    $stmt->execute([$session['user_id'], json_encode($positions), 0, $now, $now]);
+
+    // Mark any active walks as interrupted
+    $stmt = $db->prepare("UPDATE walkers SET status = 'interrupted_by_new_walk', updated_at = ? WHERE user_id = ? AND status IN ('new','walking')");
+    $stmt->execute([$now, $session['user_id']]);
+
+    // Insert new walker row
+    $stmt = $db->prepare('INSERT INTO walkers (user_id, positions, current_index, started_at, updated_at, status, finished_at) VALUES (?, ?, ?, ?, ?, ?, NULL)');
+    $stmt->execute([$session['user_id'], json_encode($positions), 0, $now, $now, 'walking']);
 
     $destination = $positions[count($positions)-1];
     $norm = [];
