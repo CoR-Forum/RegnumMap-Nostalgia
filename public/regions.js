@@ -35,17 +35,62 @@
 
   function createLogWindow(){
     const css = `
-      .game-log-window{position:fixed;left:8px;bottom:8px;width:280px;max-height:140px;overflow:auto;background:rgba(0,0,0,0.75);color:#fff;padding:8px;border-radius:6px;font-size:12px;z-index:200000;box-shadow:0 4px 16px rgba(0,0,0,0.6);}
-      .game-log-entry{margin-bottom:6px;padding:6px;border-radius:4px;background:rgba(255,255,255,0.02);}
-      .game-log-entry.error{background:rgba(255,64,64,0.08);color:#ffdcdc}
-      .game-log-ts{display:block;font-size:11px;opacity:0.7;margin-bottom:3px}
+      .game-log-window{position:fixed;left:8px;bottom:8px;width:280px;max-height:140px;overflow:auto;background:rgba(0,0,0,0.75);color:#fff;padding:8px;border-radius:6px;font-size:12px;z-index:200000;box-shadow:0 4px 16px rgba(0,0,0,0.6);} 
+      .game-log-entry{margin-bottom:6px;padding:6px;border-radius:4px;background:rgba(255,255,255,0.02);} 
+      .game-log-entry.error{background:rgba(255,64,64,0.08);color:#ffdcdc} 
+      .game-log-ts{display:block;font-size:11px;opacity:0.7;margin-bottom:3px} 
+      /* Error overlay: centered horizontally, 30% from top, big golden text, minimal styling */
+      #game-error-overlay{position:fixed;top:18vh;left:50%;transform:translateX(-50%);z-index:300000;text-align:center;pointer-events:none;display:none;max-width:40%;}
+      #game-error-overlay .game-error-msg{color:#ffd700;font-size:18px;font-weight:800;text-align:center;white-space:normal;overflow-wrap:break-word;word-wrap:break-word;}
+      #game-error-overlay{display:flex;flex-direction:column;gap:6px;align-items:center;}
     `;
     const style = document.createElement('style'); style.appendChild(document.createTextNode(css)); document.head.appendChild(style);
     const win = document.createElement('div'); win.id = 'game-log-window'; win.className = 'game-log-window'; win.style.display = 'none';
     document.body.appendChild(win);
 
+    const err = document.createElement('div'); err.id = 'game-error-overlay'; document.body.appendChild(err);
+
+    // track messages and timers so we can stack up to N messages
+    const _errorMessages = [];
+    const _ERROR_MAX = 5;
+
+    function removeErrorMessageObj(obj){
+      try{
+        const idx = _errorMessages.indexOf(obj);
+        if(idx !== -1) _errorMessages.splice(idx,1);
+        if(obj && obj.el && obj.el.parentNode) obj.el.parentNode.removeChild(obj.el);
+        if(obj && obj.timer) clearTimeout(obj.timer);
+      }catch(e){}
+      // hide container if empty
+      try{ const container = document.getElementById('game-error-overlay'); if(container && _errorMessages.length === 0) container.style.display = 'none'; }catch(e){}
+    }
+
     window.addLogMessage = function(message, level = 'info') {
       try {
+        if (level === 'error') {
+          const container = document.getElementById('game-error-overlay'); if (!container) return;
+          // create message element
+          const msgEl = document.createElement('div'); msgEl.className = 'game-error-msg'; msgEl.textContent = message;
+          // insert newest at the top so they stack downward with newest first
+          container.insertBefore(msgEl, container.firstChild);
+          container.style.display = 'flex';
+
+          // create object with timer to auto-remove
+          const obj = { el: msgEl, timer: null };
+          // enforce max messages: if over limit, remove oldest (the last element)
+          if (_errorMessages.length >= _ERROR_MAX) {
+            const oldest = _errorMessages.pop();
+            try{ if (oldest && oldest.el && oldest.el.parentNode) oldest.el.parentNode.removeChild(oldest.el); if (oldest.timer) clearTimeout(oldest.timer); }catch(e){}
+          }
+          // add newest to the start of the array
+          _errorMessages.unshift(obj);
+
+          // each message auto-hides after 6s
+          obj.timer = setTimeout(() => { removeErrorMessageObj(obj); }, 6000);
+          return;
+        }
+
+        // Non-error messages: fall back to the small game log window
         const w = document.getElementById('game-log-window'); if (!w) return;
         const entry = document.createElement('div'); entry.className = 'game-log-entry ' + (level === 'error' ? 'error' : '');
         const ts = document.createElement('span'); ts.className = 'game-log-ts'; ts.textContent = new Date().toLocaleTimeString();
