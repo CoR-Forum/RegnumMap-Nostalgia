@@ -182,17 +182,18 @@ function getDaytimeIcon($hour) {
     if ($h < 0 || $h > 23) $h = 0;
 
     // Ranges mapped to available icons: dawn, morning, day, afternoon, sunset, dusk, nightfall, night
-    if ($h === 5) return '/assets/ui-v1/time/ui-icon-time-dawn.png';
-    if ($h >= 6 && $h <= 8) return '/assets/ui-v1/time/ui-icon-time-morning.png';
-    if ($h >= 9 && $h <= 11) return '/assets/ui-v1/time/ui-icon-time-day.png';
-    if ($h >= 12 && $h <= 16) return '/assets/ui-v1/time/ui-icon-time-afternoon.png';
-    if ($h === 17) return '/assets/ui-v1/time/ui-icon-time-sunset.png';
-    if ($h === 18) return '/assets/ui-v1/time/ui-icon-time-dusk.png';
-    if ($h >= 19 && $h <= 20) return '/assets/ui-v1/time/ui-icon-time-nightfall.png';
-    if ($h >= 21 || $h <= 4) return '/assets/ui-v1/time/ui-icon-time-night.png';
+    if ($h === 5) return '/assets/v1/time/ui-icon-time-dawn.png';
+    if ($h >= 6 && $h <= 8) return '/assets/v1/time/ui-icon-time-morning.png';
+    if ($h >= 9 && $h <= 11) return '/assets/v1/time/ui-icon-time-day.png';
+    if ($h >= 12 && $h <= 16) return '/assets/v1/time/ui-icon-time-afternoon.png';
+    if ($h === 17) return '/assets/v1/time/ui-icon-time-sunset.png';
+    if ($h === 18) return '/assets/v1/time/ui-icon-time-dusk.png';
+    if ($h >= 19 && $h <= 20) return '/assets/v1/time/ui-icon-time-nightfall.png';
+    if ($h >= 21 || $h <= 4) return '/assets/v1/time/ui-icon-time-night.png';
     // fallback
-    return '/assets/ui-v1/time/ui-icon-time-day.png';
+    return '/assets/v1/time/ui-icon-time-day.png';
 }
+
 
 // Validate session and return user data
 function validateSession() {

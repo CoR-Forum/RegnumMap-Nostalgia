@@ -1042,6 +1042,11 @@
   <div id="ui-compass" aria-hidden="true">
     <img src="assets/v1/ui/ui-compass.png" alt="">
   </div>
+  <!-- Server time icon (overlays the compass, shows tooltip on hover) -->
+  <div id="ui-server-time" aria-hidden="false">
+    <img id="server-time-icon" src="/assets/ui-v1/time/ui-icon-time-day.png" alt="Server Time">
+    <div id="server-time-tooltip" class="server-time-tooltip" role="status" aria-hidden="true"></div>
+  </div>
   <!-- Top-left character status (non-interactive) -->
   <div id="ui-character-status" aria-hidden="true">
     <img src="assets/v1/ui/ui-character-status.png" alt="">
@@ -2995,6 +3000,52 @@
         });
     }
   </script>
+
+  <script>
+    (function(){
+      const ICON = document.getElementById('server-time-icon');
+      const TOOLTIP = document.getElementById('server-time-tooltip');
+
+      function getDaytimeLabel(h){
+        const hour = Number(h) || 0;
+        if(hour === 5) return 'Dawn';
+        if(hour >= 6 && hour <= 8) return 'Morning';
+        if(hour >= 9 && hour <= 11) return 'Day';
+        if(hour >= 12 && hour <= 16) return 'Afternoon';
+        if(hour === 17) return 'Sunset';
+        if(hour === 18) return 'Dusk';
+        if(hour >= 19 && hour <= 20) return 'Nightfall';
+        return 'Night';
+      }
+
+      async function fetchServerTime(){
+        try{
+          const headers = {};
+          if (typeof gameState !== 'undefined' && gameState && gameState.sessionToken) {
+            headers['X-Session-Token'] = gameState.sessionToken;
+          }
+          const res = await fetch('/api/player/position', { credentials: 'same-origin', headers });
+          if(!res.ok) return;
+          const data = await res.json();
+          if(!data || !data.success) return;
+          const st = data.serverTime || data.server_time || { hour: 0, minute: 0 };
+          const hour = Number(st.hour) || 0;
+          const minute = Number(st.minute) || 0;
+          // prefer daytimeIcon from position API, fall back to icon or generated path
+          if(data.daytimeIcon) ICON.src = data.daytimeIcon;
+          else if(data.icon) ICON.src = data.icon;
+          const hh = String(hour).padStart(2, '0');
+          const mm = String(minute).padStart(2, '0');
+          const label = getDaytimeLabel(hour);
+          TOOLTIP.textContent = `${hh}:${mm} — ${label}`;
+          TOOLTIP.setAttribute('aria-hidden', 'false');
+        }catch(e){ console.warn('Failed to fetch server time', e); }
+      }
+
+      // Initial fetch (position API will refresh server time)
+      fetchServerTime();
+    })();
+  </script>
   <script src="build-path.js"></script>
   <style>
     .info-tooltip { background: rgba(20,20,24,0.95); color: #fff; border-radius:6px; padding:8px; font-size:13px; box-shadow:0 6px 18px rgba(0,0,0,0.6); }
@@ -3054,6 +3105,12 @@
     /* Top-right compass image */
     #ui-compass{ position: fixed; top: 0; right: 0; z-index: 20001; pointer-events: none; }
     #ui-compass img{ height: 166px; display:block; }
+
+    /* Server time icon overlay (placed above compass) */
+    #ui-server-time{ position: fixed; top: 0px; right: 2px; z-index: 20003; pointer-events: auto; width:29px; height:29px; display:flex; align-items:center; justify-content:center; }
+    #ui-server-time img{ width:26px; height:26px; display:block; image-rendering: pixelated; cursor:default; }
+    .server-time-tooltip{ position: absolute; top: 38px; right: 0; display: none; background: linear-gradient(180deg, rgba(20,22,26,0.98), rgba(10,12,15,0.98)); color: #e6e6e6; padding: 4px 6px; border-radius: 6px; font-size: 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.6); white-space: nowrap; pointer-events: none; z-index: 20004; }
+    #ui-server-time:hover .server-time-tooltip{ display: block; }
 
     /* Top-left character status (overlay) */
     /* Allow hover on the character overlay so its health/mana bars can be revealed on hover. */
@@ -3316,9 +3373,27 @@
       sbSend.addEventListener('click', postMessage);
       sbMessage.addEventListener('keydown', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); postMessage(); } });
 
-      fetchMessages();
-      const poll = setInterval(fetchMessages, 5000);
-      window.addEventListener('beforeunload', ()=>clearInterval(poll));
+      // Start polling only when the user is authenticated. If already
+      // authenticated, begin immediately. Otherwise observe body class
+      // changes and start when `authenticated` is added.
+      let _shoutboxPoll = null;
+      function startShoutboxPolling(){
+        if(_shoutboxPoll) return;
+        fetchMessages();
+        _shoutboxPoll = setInterval(fetchMessages, 5000);
+        window.addEventListener('beforeunload', ()=>{ if(_shoutboxPoll) clearInterval(_shoutboxPoll); });
+      }
+
+      if(document.body.classList && document.body.classList.contains('authenticated')){
+        startShoutboxPolling();
+      } else {
+        const ob = new MutationObserver((records)=>{
+          if(document.body.classList && document.body.classList.contains('authenticated')){
+            ob.disconnect(); startShoutboxPolling();
+          }
+        });
+        try{ ob.observe(document.body, { attributes: true, attributeFilter: ['class'] }); }catch(e){ /* ignore */ }
+      }
     })();
   </script>
 
