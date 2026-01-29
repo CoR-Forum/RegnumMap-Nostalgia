@@ -721,6 +721,10 @@
           <div style="color:#e0e0e0;margin-bottom:12px;font-size:11px;text-align:center;padding-top:12px;">
         Login with your cor-forum.de account
           </div>
+          <div id="auto-login-loading" class="hidden" style="text-align:center;padding:20px;color:#e0e0e0;font-size:11px;">
+            <div class="loading-spinner" style="display:inline-block;margin-bottom:8px;"></div>
+            <div>Checking session...</div>
+          </div>
           <div id="login-error" class="error-message hidden"></div>
           <form id="login-form">
         <div class="form-group">
@@ -1214,8 +1218,11 @@
     let territoryIcons = {};
     
     // Expose gameState on window so other modules can access it
+    const storedToken = localStorage.getItem('sessionToken');
+    console.log('[Session] Initializing gameState, stored token:', storedToken ? 'present' : 'missing');
+    
     window.gameState = {
-      sessionToken: localStorage.getItem('sessionToken'),
+      sessionToken: storedToken,
       userId: null,
       username: null,
       realm: null,
@@ -1340,7 +1347,12 @@
         gameState.username = data.username;
         gameState.realm = data.realm;
 
-        try { localStorage.setItem('sessionToken', data.sessionToken); } catch (e) {}
+        try { 
+          localStorage.setItem('sessionToken', data.sessionToken); 
+          console.log('[Session] Login successful, token stored');
+        } catch (e) {
+          console.error('[Session] Failed to store token in localStorage:', e);
+        }
 
         if (data.needsRealmSelection) {
           showRealmSelection();
@@ -1530,6 +1542,7 @@
 
     // Logout handler
     document.getElementById('logout-btn').addEventListener('click', () => {
+      console.log('[Session] Logging out');
       localStorage.removeItem('sessionToken');
       gameState.sessionToken = null;
       if (gameState.pollInterval) {
@@ -1569,6 +1582,10 @@
 
     function closeInventory() {
       document.getElementById('inventory-window').style.display = 'none';
+    }
+
+    function closeCharacter() {
+      document.getElementById('character-window').style.display = 'none';
     }
 
     // Character window functions moved to public/character.html
@@ -2096,6 +2113,7 @@
           const status = (error && typeof error.status !== 'undefined') ? error.status : null;
           const authFailure = (status === 401 || status === 403) || /invalid|expired|unauthor/i.test(msg);
           if (authFailure) {
+            console.log('[Session] Auth failure detected, clearing stored token');
             try { localStorage.removeItem('sessionToken'); } catch (e) {}
             try { gameState.sessionToken = null; } catch (e) {}
           } else {
@@ -2877,16 +2895,46 @@
 
     // Auto-login if session token exists
     if (gameState.sessionToken) {
-      initGame().catch((err) => {
+      console.log('[Session] Session token found, attempting auto-login');
+      // Show loading animation
+      try {
+        const loginForm = document.getElementById('login-form');
+        const autoLoginLoading = document.getElementById('auto-login-loading');
+        if (loginForm) loginForm.style.display = 'none';
+        if (autoLoginLoading) autoLoginLoading.classList.remove('hidden');
+      } catch (e) {}
+      
+      setTimeout(() => {
+        initGame().catch((err) => {
           // Auto-login failed. Do not forcibly remove the stored session token here;
           // `initGame` already clears it if the server reported an auth failure.
-          console.debug('Auto-initGame failed:', err && err.message ? err.message : err);
+          console.log('[Session] Auto-login failed:', err && err.message ? err.message : err);
           try {
+            // Hide loading and show login form
+            const loginForm = document.getElementById('login-form');
+            const autoLoginLoading = document.getElementById('auto-login-loading');
+            if (loginForm) loginForm.style.display = 'block';
+            if (autoLoginLoading) autoLoginLoading.classList.add('hidden');
+            
             document.body.classList.remove('authenticated');
-            const overlay = document.getElementById('modal-overlay'); if (overlay) overlay.classList.remove('hidden');
+            const overlay = document.getElementById('modal-overlay'); 
+            if (overlay) { 
+              overlay.classList.remove('hidden');
+              console.log('[Session] Showing login modal after auto-login failure');
+            }
             try { document.getElementById('step-login').classList.add('active'); document.getElementById('step-realm').classList.remove('active'); } catch (e) {}
           } catch (e) {}
         });
+      }, 1000);
+    } else {
+      console.log('[Session] No session token found, showing login modal');
+      // Ensure modal is visible and login screen is active
+      try {
+        const overlay = document.getElementById('modal-overlay');
+        if (overlay) overlay.classList.remove('hidden');
+        document.getElementById('step-login').classList.add('active');
+        document.getElementById('step-realm').classList.remove('active');
+      } catch (e) {}
     }
   </script>
 
