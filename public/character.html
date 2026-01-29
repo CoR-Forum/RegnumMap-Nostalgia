@@ -1,0 +1,57 @@
+<!-- Character Window (equipment + stats) -->
+<div id="character-window" class="ui-window" style="position: absolute; left: 12px; bottom: 195px; width: 240px; z-index: 1000; display: none; flex-direction: column; font-family: 'MS Sans Serif', Arial, sans-serif;">
+  <div id="character-header" class="ui-window-titlebar" style="cursor: move; display: flex; justify-content: space-between; align-items: center; user-select: none;">
+    <h2 style="margin: 0; flex: 1; font-size: 11px; font-weight: 700; color: #ffffff; text-align: center;">Character</h2>
+    <button id="character-close-btn" class="ui-window-close-btn"></button>
+  </div>
+
+  <div id="character-body" class="ui-window-body" style="padding: 8px; display: flex; flex-direction: column; gap: 6px;">
+    <div class="char-section">
+      <div class="char-section-title">Name</div>
+      <div class="char-section-body">
+        <div id="char-name" class="char-line">-</div>
+        <div id="char-realm" class="char-line">-</div>
+        <div id="char-class" class="char-line">-</div>
+        <div class="char-line">Level <span id="char-level">1</span></div>
+      </div>
+    </div>
+
+    <div class="char-section">
+      <div class="char-section-title">Experience</div>
+      <div class="char-section-body">
+        <div id="char-xp-text" class="char-line">0 / 0</div>
+        <div class="char-xp-bar">
+          <div id="char-xp-fill"></div>
+        </div>
+        <div id="char-rp" class="char-line">0 Regnum Points</div>
+      </div>
+    </div>
+
+    <div class="char-section">
+      <div class="char-section-title">Attributes</div>
+      <div class="char-section-body">
+        <div class="char-attr-row"><span class="char-attr-name char-attr-good">Intelligence</span><span id="stat-int" class="char-attr-value char-attr-good">20</span></div>
+        <div class="char-attr-row"><span class="char-attr-name char-attr-bad">Dexterity</span><span id="stat-dex" class="char-attr-value char-attr-bad">20</span></div>
+        <div class="char-attr-row"><span class="char-attr-name char-attr-bad">Concentration</span><span id="stat-con" class="char-attr-value char-attr-bad">20</span></div>
+        <div class="char-attr-row"><span class="char-attr-name char-attr-bad">Strength</span><span id="stat-str" class="char-attr-value char-attr-bad">20</span></div>
+        <div class="char-attr-row"><span class="char-attr-name char-attr-bad">Constitution</span><span id="stat-const" class="char-attr-value char-attr-bad">20</span></div>
+      </div>
+    </div>
+
+    <div class="char-section">
+      <div class="char-section-body">
+        <div class="char-stat-row"><span>Attack:</span><span id="stat-attack">0</span></div>
+        <div class="char-stat-row"><span>Armor:</span><span id="stat-armor">0</span></div>
+        <div class="char-stat-row"><span>Hit Chance:</span><span id="stat-hit">0</span></div>
+        <div class="char-stat-row"><span>Evasion:</span><span id="stat-evasion">0</span></div>
+        <div class="char-stat-row"><span>Block Chance:</span><span id="stat-block">0</span></div>
+      </div>
+    </div>
+
+    <div class="char-section">
+      <div class="char-section-body char-status">
+        <span>Weakness of the Dead</span><span id="stat-weakness">0%</span>
+      </div>
+    </div>
+  </div>
+</div>
