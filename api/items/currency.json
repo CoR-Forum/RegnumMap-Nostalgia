@@ -1,0 +1,26 @@
+[
+  {
+    "template_key": "gold_coin",
+    "name": "Gold Coin",
+    "type": "currency",
+    "description": "A shiny gold coin",
+    "stats": { "value": 1 },
+    "rarity": "common",
+    "stackable": 1,
+    "level": 0,
+    "equipment_slot": null,
+    "icon_name": "item-gold-coin.png"
+  },
+  {
+    "template_key": "magnanite",
+    "name": "Magnanite",
+    "type": "currency",
+    "description": "A piece of magnanite ore",
+    "stats": { "value": 5 },
+    "rarity": "rare",
+    "stackable": 1,
+    "level": 0,
+    "equipment_slot": null,
+    "icon_name": "item-gold-coin.png"
+  }
+]

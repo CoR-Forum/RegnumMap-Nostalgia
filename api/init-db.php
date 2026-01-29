@@ -114,37 +114,28 @@ try {
     $db->exec('CREATE INDEX IF NOT EXISTS idx_territory_captures_territory_id ON territory_captures(territory_id)');
     $db->exec('CREATE INDEX IF NOT EXISTS idx_territory_captures_captured_at ON territory_captures(captured_at)');
 
-    // NOTE: item templates are stored in a dedicated SQLite database file
-    // Create itemTemplates.sqlite and the `items` table inside it.
-    $dockerItemsPath = '/var/www/api/itemTemplates.sqlite';
-    $localItemsPath = __DIR__ . '/itemTemplates.sqlite';
-    $itemsSqlitePath = file_exists(dirname($dockerItemsPath)) ? $dockerItemsPath : $localItemsPath;
-    try {
-        $itemsDb = new PDO('sqlite:' . $itemsSqlitePath);
-        $itemsDb->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $itemsDb->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-
-        $itemsDb->exec("CREATE TABLE IF NOT EXISTS items (
-            item_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            type TEXT NOT NULL,
+    // Create items table (item templates) with stable template_key
+    $db->exec(" 
+        CREATE TABLE IF NOT EXISTS items (
+            item_id INT AUTO_INCREMENT PRIMARY KEY,
+            template_key VARCHAR(128) NOT NULL UNIQUE,
+            name VARCHAR(255) NOT NULL UNIQUE,
+            type VARCHAR(64) NOT NULL,
             description TEXT NULL,
             stats TEXT NULL,
-            rarity TEXT DEFAULT 'common',
-            stackable INTEGER DEFAULT 1,
-            level INTEGER DEFAULT 1,
-            equipment_slot TEXT DEFAULT NULL,
-            icon_name TEXT DEFAULT NULL
-        )");
-    } catch (PDOException $e) {
-        echo "Warning: failed to open or create itemTemplates.sqlite: " . $e->getMessage() . "\n";
-        $itemsDb = null;
-    }
+            rarity VARCHAR(32) DEFAULT 'common',
+            stackable TINYINT(1) DEFAULT 1,
+            level INT DEFAULT 1,
+            equipment_slot VARCHAR(32) DEFAULT NULL,
+            icon_name VARCHAR(255) DEFAULT NULL
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_items_type ON items(type)');
 
     // NOTE: paths are now loaded from a JSON file (not stored in DB)
 
     // Create inventory table (player ownership)
-    // NOTE: foreign key to `items` was removed because templates live in SQLite
     $db->exec('
         CREATE TABLE IF NOT EXISTS inventory (
             inventory_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -152,7 +143,8 @@ try {
             item_id INT NOT NULL,
             quantity INT NOT NULL DEFAULT 1,
             acquired_at INT NOT NULL,
-            FOREIGN KEY (user_id) REFERENCES players(user_id)
+            FOREIGN KEY (user_id) REFERENCES players(user_id),
+            FOREIGN KEY (item_id) REFERENCES items(item_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ');
 
@@ -288,69 +280,104 @@ try {
         echo "  - Seeded " . count($superbosses) . " superbosses\n";
     }
 
-    // Seed items (item templates) into SQLite `itemTemplates.sqlite`
-    $items = [
-        // Consumables & currency
-        ['Health Potion', 'consumable', 'Restores 100 health', '{"heal": 100}', 'common', 1, 1, NULL, 'item-health-potion-50.png'],
-        ['Mana Potion', 'consumable', 'Restores 50 mana', '{"mana": 50}', 'common', 1, 1, NULL, 'item-mana-potion-50.png'],
-        ['Teleport Scroll', 'consumable', 'Teleports to spawn point', '{}', 'uncommon', 1, 1, NULL, 'item-teleport.png'],
-        ['Gold Coin', 'currency', 'A shiny gold coin', '{"value": 1}', 'common', 1, 0, NULL, 'item-gold-coin.png'],
+    // Seed items (item templates)
+    // If directory api/items/ exists, load and merge all JSON files inside it.
+    // Otherwise require api/items.json (single file).
+    $itemsDir = __DIR__ . '/items';
+    $items = [];
 
-        // Weapons (right hand)
-        ['Iron Sword', 'weapon', 'A basic iron sword', '{"damage": 15, "speed": 1.2}', 'common', 0, 1, 'weapon_right', 'item-short-sword.png'],
-        ['Steel Sword', 'weapon', 'A sturdy steel sword', '{"damage": 25, "speed": 1.3}', 'uncommon', 0, 3, 'weapon_right', 'item-long-sword.png'],
-
-        // Off-hand (left hand) - shields / secondary weapons
-        ['Wooden Shield', 'armor', 'A simple wooden shield', '{"armor": 10}', 'common', 0, 1, 'weapon_left', 'item-wooden-shield.png'],
-        ['Tower Shield', 'armor', 'Large shield offering excellent protection', '{"armor": 22}', 'uncommon', 0, 4, 'weapon_left', 'item-metal-shield.png'],
-
-        // Head
-        ['Leather Cap', 'armor', 'A light leather cap', '{"armor": 5}', 'common', 0, 1, 'head', 'item-leather-cap.png'],
-        ['Iron Helmet', 'armor', 'A sturdy iron helmet', '{"armor": 12}', 'uncommon', 0, 3, 'head', 'item-iron-helmet.png'],
-
-        // Body
-        ['Leather Tunic', 'armor', 'Light leather armor for torso', '{"armor": 8}', 'common', 0, 1, 'body', 'item-leather-tunic.png'],
-        ['Iron Armor', 'armor', 'Basic iron chest armor', '{"armor": 20, "health": 50}', 'common', 0, 4, 'body', 'item-iron-armor.png'],
-        ['Plate Armor', 'armor', 'Heavy plate armor', '{"armor": 40, "health": 150}', 'epic', 0, 8, 'body', 'item-plate-armor.png'],
-
-        // Hands
-        ['Leather Gloves', 'armor', 'Simple leather gloves', '{"armor": 3}', 'common', 0, 1, 'hands', 'item-leather-gloves.png'],
-        ['Iron Gauntlets', 'armor', 'Sturdy iron gauntlets', '{"armor": 8}', 'uncommon', 0, 3, 'hands', 'item-iron-gauntlets.png'],
-
-        // Shoulders
-        ['Leather Pauldrons', 'armor', 'Small shoulder guards', '{"armor": 4}', 'common', 0, 1, 'shoulders', 'item-leather-pauldrons.png'],
-        ['Steel Pauldrons', 'armor', 'Reinforced shoulder armor', '{"armor": 10}', 'rare', 0, 4, 'shoulders', 'item-steel-pauldrons.png'],
-
-        // Legs
-        ['Leather Leggings', 'armor', 'Light leg protection', '{"armor": 6}', 'common', 0, 1, 'legs', 'item-leather-leggings.png'],
-        ['Iron Leggings', 'armor', 'Reinforced leg armor', '{"armor": 14}', 'uncommon', 0, 3, 'legs', 'item-iron-leggings.png'],
-
-        // Rings (right/left)
-        ['Silver Ring', 'misc', 'A simple silver ring', '{"armor": 1}', 'common', 0, 1, 'ring_right', 'item-silver-ring.png'],
-        ['Gold Ring', 'misc', 'A ring of fine gold', '{"armor": 2}', 'uncommon', 0, 2, 'ring_left', 'item-gold-ring.png'],
-
-        // Amulets
-        ['Silver Amulet', 'misc', 'A charm worn around the neck', '{"mana_boost": 5}', 'common', 0, 1, 'amulet', 'item-silver-amulet.png'],
-        ['Amulet of Strength', 'misc', 'Increases strength significantly', '{"damage": 10, "strength": 5}', 'rare', 0, 6, 'amulet', 'item-amulet-strength.png'],
-    ];
-
-    if ($itemsDb) {
-        $stmt = $itemsDb->prepare('SELECT COUNT(*) FROM items');
-        $stmt->execute();
-        $count = (int)$stmt->fetchColumn();
-
-        if ($count === 0) {
-            $ins = $itemsDb->prepare('INSERT INTO items (name, type, description, stats, rarity, stackable, level, equipment_slot, icon_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
-            foreach ($items as $item) {
-                // Use NULL for PHP null values so PDO maps correctly
-                $params = array_map(function($v){ return $v === NULL ? null : $v; }, $item);
-                $ins->execute($params);
+    if (is_dir($itemsDir)) {
+        $files = glob($itemsDir . '/*.json');
+        foreach ($files as $f) {
+            $json = file_get_contents($f);
+            $decoded = json_decode($json, true);
+            if (!is_array($decoded)) {
+                echo "Error: items file " . basename($f) . " contains invalid JSON or is not an array\n";
+                exit(1);
             }
-            echo "  - Seeded " . count($items) . " item templates into SQLite\n";
+            foreach ($decoded as $it) {
+                $stats = isset($it['stats']) ? json_encode($it['stats']) : '{}';
+                if (!isset($it['template_key']) || trim((string)$it['template_key']) === '') {
+                    echo "Error: missing template_key in " . basename($f) . " for item '" . ($it['name'] ?? '') . "'\n";
+                    exit(1);
+                }
+                $template_key = $it['template_key'];
+                $items[] = [
+                    $template_key,
+                    $it['name'] ?? '',
+                    $it['type'] ?? 'misc',
+                    $it['description'] ?? null,
+                    $stats,
+                    $it['rarity'] ?? 'common',
+                    isset($it['stackable']) ? (int)$it['stackable'] : 1,
+                    isset($it['level']) ? (int)$it['level'] : 1,
+                    $it['equipment_slot'] ?? null,
+                    $it['icon_name'] ?? null
+                ];
+            }
         }
     } else {
-        echo "  - Skipping seeding item templates: SQLite DB not available\n";
+        $itemsFile = __DIR__ . '/items.json';
+        if (!file_exists($itemsFile)) {
+            echo "Error: required file api/items.json not found and api/items/ directory does not exist\n";
+            exit(1);
+        }
+
+        $json = file_get_contents($itemsFile);
+        $decoded = json_decode($json, true);
+        if (!is_array($decoded)) {
+            echo "Error: api/items.json contains invalid JSON or is not an array\n";
+            exit(1);
+        }
+
+        foreach ($decoded as $it) {
+            $stats = isset($it['stats']) ? json_encode($it['stats']) : '{}';
+            if (!isset($it['template_key']) || trim((string)$it['template_key']) === '') {
+                echo "Error: missing template_key in api/items.json for item '" . ($it['name'] ?? '') . "'\n";
+                exit(1);
+            }
+            $template_key = $it['template_key'];
+            $items[] = [
+                $template_key,
+                $it['name'] ?? '',
+                $it['type'] ?? 'misc',
+                $it['description'] ?? null,
+                $stats,
+                $it['rarity'] ?? 'common',
+                isset($it['stackable']) ? (int)$it['stackable'] : 1,
+                isset($it['level']) ? (int)$it['level'] : 1,
+                $it['equipment_slot'] ?? null,
+                $it['icon_name'] ?? null
+            ];
+        }
     }
+
+    // Upsert items: insert new templates and update existing ones by template_key
+    $selectStmt = $db->prepare('SELECT item_id FROM items WHERE template_key = ?');
+    $insertStmt = $db->prepare('INSERT INTO items (template_key, name, type, description, stats, rarity, stackable, level, equipment_slot, icon_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    $updateStmt = $db->prepare('UPDATE items SET name = ?, type = ?, description = ?, stats = ?, rarity = ?, stackable = ?, level = ?, equipment_slot = ?, icon_name = ? WHERE template_key = ?');
+
+    $inserted = 0;
+    $updated = 0;
+    foreach ($items as $item) {
+        // $item = [template_key, name, type, description, stats, rarity, stackable, level, equipment_slot, icon_name]
+        $template_key = $item[0];
+        $selectStmt->execute([$template_key]);
+        $exists = $selectStmt->fetchColumn();
+        if ($exists === false) {
+            $insertStmt->execute($item);
+            $inserted++;
+        } else {
+            // prepare update params: name,type,description,stats,rarity,stackable,level,equipment_slot,icon_name,template_key
+            $updateParams = [
+                $item[1], $item[2], $item[3], $item[4], $item[5], $item[6], $item[7], $item[8], $item[9], $template_key
+            ];
+            $updateStmt->execute($updateParams);
+            $updated++;
+        }
+    }
+
+    echo "  - Items processed: inserted={$inserted}, updated={$updated}\n";
 
     // Paths are provided via api/paths.json (not seeded into DB)
 
@@ -360,24 +387,24 @@ try {
     $playersWithoutItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     if (count($playersWithoutItems) > 0) {
-            // Get item IDs for starter items from SQLite templates DB
-            $healthPotionId = null; $manaPotionId = null; $ironSwordId = null;
-            if ($itemsDb) {
-                $q = $itemsDb->prepare('SELECT item_id FROM items WHERE name = ? LIMIT 1');
-                $q->execute(['Health Potion']); $healthPotionId = $q->fetchColumn();
-                $q->execute(['Mana Potion']); $manaPotionId = $q->fetchColumn();
-                $q->execute(['Iron Sword']); $ironSwordId = $q->fetchColumn();
-            }
-
-            $ins = $db->prepare('INSERT INTO inventory (user_id, item_id, quantity, acquired_at) VALUES (?, ?, ?, ?)');
-            foreach ($playersWithoutItems as $player) {
-                $now = time();
-                // Give starter items only if template IDs were found
-                if ($healthPotionId) $ins->execute([$player['user_id'], (int)$healthPotionId, 5, $now]);
-                if ($manaPotionId) $ins->execute([$player['user_id'], (int)$manaPotionId, 3, $now]);
-                if ($ironSwordId) $ins->execute([$player['user_id'], (int)$ironSwordId, 1, $now]);
-            }
-            echo "  - Seeded starter items for " . count($playersWithoutItems) . " existing players (where templates exist)\n";
+        // Get item IDs for starter items
+        $stmt = $db->prepare('SELECT item_id FROM items WHERE name = ?');
+        $stmt->execute(['Health Potion']);
+        $healthPotionId = $stmt->fetchColumn();
+        $stmt->execute(['Mana Potion']);
+        $manaPotionId = $stmt->fetchColumn();
+        $stmt->execute(['Iron Sword']);
+        $ironSwordId = $stmt->fetchColumn();
+        
+        $stmt = $db->prepare('INSERT INTO inventory (user_id, item_id, quantity, acquired_at) VALUES (?, ?, ?, ?)');
+        foreach ($playersWithoutItems as $player) {
+            $now = time();
+            // Give starter items
+            $stmt->execute([$player['user_id'], $healthPotionId, 5, $now]);
+            $stmt->execute([$player['user_id'], $manaPotionId, 3, $now]);
+            $stmt->execute([$player['user_id'], $ironSwordId, 1, $now]);
+        }
+        echo "  - Seeded starter items for " . count($playersWithoutItems) . " existing players\n";
     }
 
     echo "Database initialized successfully!\n";
@@ -387,7 +414,7 @@ try {
     echo "  - players (user_id, username, realm, x, y, health, max_health, mana, max_mana, xp, level, intelligence, dexterity, concentration, strength, constitution, last_active)\n";
     echo "  - territories (territory_id, realm, name, type, health, x, y, owner_realm, owner_players, contested, contested_since)\n";
     echo "  - superbosses (boss_id, name, health, max_health, x, y, last_attacked, respawn_time)\n";
-    echo "  - item templates in itemTemplates.sqlite (item_id, name, type, description, stats, rarity, stackable, equipment_slot)\n";
+    echo "  - items (item_id, name, type, description, stats, rarity, stackable, equipment_slot)\n";
     echo "  - inventory (inventory_id, user_id, item_id, quantity, acquired_at)\n";
     echo "  - equipment (equipment_id, user_id, head, body, hands, shoulders, legs, weapon_right, weapon_left, ring_right, ring_left, amulet, created_at, updated_at)\n";
     echo "  - server_time (started_at, last_updated, ingame_hour, ingame_minute, tick_seconds)\n";

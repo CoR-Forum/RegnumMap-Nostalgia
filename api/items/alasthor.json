@@ -1,0 +1,14 @@
+[
+  {
+    "template_key": "alasthor_amulet",
+    "name": "Alasthor's Amulet",
+    "type": "amulet",
+    "description": "An ancient amulet droppped by Alasthor",
+    "stats": { "damage": 50 },
+    "rarity": "rare",
+    "stackable": 0,
+    "level": 50,
+    "equipment_slot": "amulet",
+    "icon_name": "item-silver-ring.png"
+  }
+]

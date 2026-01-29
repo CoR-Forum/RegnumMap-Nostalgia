@@ -1,0 +1,26 @@
+[
+  {
+    "template_key": "iron_swordddd",
+    "name": "Iron Swordddd",
+    "type": "weapon",
+    "description": "A basic iron sword",
+    "stats": { "damage": 15, "speed": 1.2 },
+    "rarity": "common",
+    "stackable": 0,
+    "level": 1,
+    "equipment_slot": "weapon_right",
+    "icon_name": "item-short-sword.png"
+  },
+  {
+    "template_key": "steel_sword",
+    "name": "Steel Sword",
+    "type": "weapon",
+    "description": "A sturdy steel sword",
+    "stats": { "damage": 25, "speed": 1.3 },
+    "rarity": "uncommon",
+    "stackable": 0,
+    "level": 3,
+    "equipment_slot": "weapon_right",
+    "icon_name": "item-long-sword.png"
+  }
+]
