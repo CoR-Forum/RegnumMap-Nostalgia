@@ -2106,6 +2106,15 @@
         // Create player marker
         createPlayerMarker(gameState.position.x, gameState.position.y);
 
+        // If the server provided an active walker path for this player, draw it
+        // immediately so the player sees the walking path on login without
+        // waiting for the periodic poller.
+        try {
+          if (data.walker && data.walker.positions) {
+            drawWalkPath(data.walker.positions);
+          }
+        } catch (e) { console.debug('drawWalkPath on init failed', e); }
+
         // Load and render paths from server only if enabled
         if (gameState.showPaths) await loadAndRenderPaths();
 
@@ -2393,6 +2402,13 @@
           gameState.walkingTarget = { x, y };
         }
 
+        // If server returned the computed path, draw it immediately so the user
+        // sees the walking path instantly instead of waiting for the poller.
+        try {
+          if (data.walker && data.walker.positions) {
+            drawWalkPath(data.walker.positions);
+          }
+        } catch (e) { console.debug('drawWalkPath after move failed', e); }
         console.debug('performWalkAtLatLng: started', data);
       } catch (error) {
         try {
