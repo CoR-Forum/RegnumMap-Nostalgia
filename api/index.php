@@ -261,6 +261,8 @@ if ($path === '/login' && $requestMethod === 'POST') {
     handleAddInventoryItem();
 } elseif ($path === '/inventory/remove' && $requestMethod === 'POST') {
     handleRemoveInventoryItem();
+} elseif ($path === '/inventory/use' && $requestMethod === 'POST') {
+    handleUseItem();
 } elseif ($path === '/items' && $requestMethod === 'GET') {
     handleGetItems();
 } elseif ($path === '/equipment' && $requestMethod === 'GET') {
@@ -497,12 +499,24 @@ function handleGetPosition() {
     }
 
     $db = getDB();
-    $stmt = $db->prepare('SELECT username, x, y, realm, health, max_health, mana, max_mana, xp, level, intelligence, dexterity, concentration, strength, constitution FROM players WHERE user_id = ?');
+    $stmt = $db->prepare('SELECT username, x, y, realm, health, max_health, mana, max_mana, xp, level, intelligence, dexterity, concentration, strength, constitution, speed_multiplier, active_mount_inventory_id FROM players WHERE user_id = ?');
     $stmt->execute([$session['user_id']]);
     $player = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$player) {
         respondError('Player not found', 404);
+    }
+
+    // Validate active mount still exists in inventory
+    if ($player['active_mount_inventory_id'] !== null) {
+        $mountCheck = $db->prepare('SELECT inventory_id FROM inventory WHERE inventory_id = ? AND user_id = ?');
+        $mountCheck->execute([$player['active_mount_inventory_id'], $session['user_id']]);
+        if (!$mountCheck->fetch()) {
+            // Mount no longer exists, clear it from player
+            $db->prepare('UPDATE players SET active_mount_inventory_id = NULL, speed_multiplier = 1.00 WHERE user_id = ?')->execute([$session['user_id']]);
+            $player['active_mount_inventory_id'] = null;
+            $player['speed_multiplier'] = 1.00;
+        }
     }
 
     // Fetch most recent active walker for this user (if any)
@@ -579,6 +593,8 @@ function handleGetPosition() {
         'xp' => $xpVal,
         'level' => isset($player['level']) ? (int)$player['level'] : xpToLevel($xpVal),
         'xpToNext' => $xpToNext,
+        'speedMultiplier' => isset($player['speed_multiplier']) ? (float)$player['speed_multiplier'] : 1.0,
+        'activeMountInventoryId' => isset($player['active_mount_inventory_id']) ? (int)$player['active_mount_inventory_id'] : null,
         'stats' => [
             'intelligence' => isset($player['intelligence']) ? (int)$player['intelligence'] : 20,
             'dexterity' => isset($player['dexterity']) ? (int)$player['dexterity'] : 20,
@@ -1153,10 +1169,29 @@ function handleGetInventory() {
     }
     $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Get player's active mount
+    $mountStmt = $db->prepare('SELECT active_mount_inventory_id FROM players WHERE user_id = ?');
+    $mountStmt->execute([$session['user_id']]);
+    $playerData = $mountStmt->fetch(PDO::FETCH_ASSOC);
+    $activeMountId = $playerData ? $playerData['active_mount_inventory_id'] : null;
+
+    // Get usage information for items with limited usage
+    $usageData = [];
+    if (count($items) > 0) {
+        $inventoryIds = array_map(function($i) { return (int)$i['inventory_id']; }, $items);
+        $placeholders = implode(',', array_fill(0, count($inventoryIds), '?'));
+        $usageStmt = $db->prepare("SELECT inventory_id, uses_remaining FROM inventory_usage WHERE inventory_id IN ($placeholders)");
+        $usageStmt->execute($inventoryIds);
+        while ($row = $usageStmt->fetch(PDO::FETCH_ASSOC)) {
+            $usageData[(int)$row['inventory_id']] = (int)$row['uses_remaining'];
+        }
+    }
+
     $result = [];
     foreach ($items as $item) {
-        $result[] = [
-            'inventoryId' => (int)$item['inventory_id'],
+        $inventoryId = (int)$item['inventory_id'];
+        $itemData = [
+            'inventoryId' => $inventoryId,
             'itemId' => (int)$item['item_id'],
             'itemName' => $item['name'],
             'itemType' => $item['type'],
@@ -1170,6 +1205,16 @@ function handleGetInventory() {
             'iconName' => $item['icon_name'] ?? null,
             'acquiredAt' => (int)$item['acquired_at']
         ];
+        
+        // Add mount-specific data
+        if ($item['type'] === 'mount') {
+            $itemData['isActive'] = ($activeMountId !== null && (int)$activeMountId === $inventoryId);
+            if (isset($usageData[$inventoryId])) {
+                $itemData['usesRemaining'] = $usageData[$inventoryId];
+            }
+        }
+        
+        $result[] = $itemData;
     }
 
     respondSuccess(['items' => $result]);
@@ -1295,6 +1340,221 @@ function handleRemoveInventoryItem() {
             'itemName' => $item['name'],
             'quantity' => $newQuantity
         ]);
+    }
+}
+
+/* ================================================================
+    USE ITEM (Mounts, Consumables, etc.)
+    POST /inventory/use
+================================================================ */
+function handleUseItem() {
+    $session = validateSession();
+
+    if ($session['realm'] === null) {
+        respondError('Realm not selected');
+    }
+
+    $inventoryId = isset($_POST['inventoryId']) ? (int)$_POST['inventoryId'] : null;
+
+    if (!$inventoryId) {
+        respondError('Inventory ID is required');
+    }
+
+    $db = getDB();
+    
+    try {
+        $db->beginTransaction();
+
+        // Get item details
+        $stmt = $db->prepare('
+            SELECT inv.inventory_id, inv.quantity, inv.item_id, items.name, items.type, items.stats, items.level
+            FROM inventory inv
+            JOIN items ON inv.item_id = items.item_id
+            WHERE inv.inventory_id = ? AND inv.user_id = ?
+        ');
+        $stmt->execute([$inventoryId, $session['user_id']]);
+        $item = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$item) {
+            $db->rollBack();
+            respondError('Item not found', 404);
+        }
+
+        $stats = json_decode($item['stats'], true) ?: [];
+        $itemType = $item['type'];
+
+        // Check player level requirement
+        $requiredLevel = isset($item['level']) ? (int)$item['level'] : 1;
+        $pstmt = $db->prepare('SELECT level, xp FROM players WHERE user_id = ? LIMIT 1');
+        $pstmt->execute([$session['user_id']]);
+        $prow = $pstmt->fetch(PDO::FETCH_ASSOC);
+        if ($prow) {
+            if (isset($prow['level']) && $prow['level'] !== null) {
+                $playerLevel = (int)$prow['level'];
+            } else {
+                $playerXp = isset($prow['xp']) ? (int)$prow['xp'] : 0;
+                $playerLevel = xpToLevel($playerXp);
+            }
+        } else {
+            $playerLevel = 1;
+        }
+
+        if ($playerLevel < $requiredLevel) {
+            $db->rollBack();
+            respondError('Your level is too low to use "' . $item['name'] . '". Requires level ' . $requiredLevel, 403);
+        }
+
+        // Handle different item types
+        if ($itemType === 'mount') {
+            // Handle mount usage
+            $speedMultiplier = isset($stats['speed_multiplier']) ? (float)$stats['speed_multiplier'] : 1.5;
+            $maxUsage = isset($stats['max_usage']) ? (int)$stats['max_usage'] : -1;
+
+            // Check if a mount is already active
+            $stmt = $db->prepare('SELECT active_mount_inventory_id FROM players WHERE user_id = ?');
+            $stmt->execute([$session['user_id']]);
+            $player = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($player['active_mount_inventory_id'] == $inventoryId) {
+                // Dismount
+                $stmt = $db->prepare('UPDATE players SET active_mount_inventory_id = NULL, speed_multiplier = 1.00 WHERE user_id = ?');
+                $stmt->execute([$session['user_id']]);
+                
+                $db->commit();
+                respondSuccess([
+                    'action' => 'dismount',
+                    'message' => 'You dismounted from ' . $item['name']
+                ]);
+            } elseif ($player['active_mount_inventory_id'] !== null) {
+                // Another mount is active, switch to this one
+                $stmt = $db->prepare('UPDATE players SET active_mount_inventory_id = ?, speed_multiplier = ? WHERE user_id = ?');
+                $stmt->execute([$inventoryId, $speedMultiplier, $session['user_id']]);
+                
+                // Track usage for limited-use mounts
+                if ($maxUsage > 0) {
+                    handleMountUsage($db, $inventoryId, $maxUsage);
+                }
+                
+                $db->commit();
+                respondSuccess([
+                    'action' => 'mount',
+                    'message' => 'You mounted ' . $item['name'],
+                    'speedMultiplier' => $speedMultiplier
+                ]);
+            } else {
+                // Mount for the first time
+                $stmt = $db->prepare('UPDATE players SET active_mount_inventory_id = ?, speed_multiplier = ? WHERE user_id = ?');
+                $stmt->execute([$inventoryId, $speedMultiplier, $session['user_id']]);
+                
+                // Track usage for limited-use mounts
+                if ($maxUsage > 0) {
+                    handleMountUsage($db, $inventoryId, $maxUsage);
+                }
+                
+                $db->commit();
+                respondSuccess([
+                    'action' => 'mount',
+                    'message' => 'You mounted ' . $item['name'],
+                    'speedMultiplier' => $speedMultiplier
+                ]);
+            }
+        } elseif ($itemType === 'consumable') {
+            // Handle consumable usage (health potion, mana potion, etc.)
+            $healAmount = isset($stats['heal']) ? (int)$stats['heal'] : 0;
+            $manaAmount = isset($stats['mana']) ? (int)$stats['mana'] : 0;
+            
+            if ($healAmount > 0 || $manaAmount > 0) {
+                $stmt = $db->prepare('SELECT health, max_health, mana, max_mana FROM players WHERE user_id = ?');
+                $stmt->execute([$session['user_id']]);
+                $player = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                $newHealth = min($player['health'] + $healAmount, $player['max_health']);
+                $newMana = min($player['mana'] + $manaAmount, $player['max_mana']);
+                
+                $stmt = $db->prepare('UPDATE players SET health = ?, mana = ? WHERE user_id = ?');
+                $stmt->execute([$newHealth, $newMana, $session['user_id']]);
+                
+                // Decrease quantity or remove item
+                if ($item['quantity'] <= 1) {
+                    $stmt = $db->prepare('DELETE FROM inventory WHERE inventory_id = ?');
+                    $stmt->execute([$inventoryId]);
+                } else {
+                    $stmt = $db->prepare('UPDATE inventory SET quantity = quantity - 1 WHERE inventory_id = ?');
+                    $stmt->execute([$inventoryId]);
+                }
+                
+                $db->commit();
+                respondSuccess([
+                    'action' => 'consume',
+                    'message' => 'You used ' . $item['name'],
+                    'healAmount' => $healAmount,
+                    'manaAmount' => $manaAmount,
+                    'newHealth' => $newHealth,
+                    'newMana' => $newMana
+                ]);
+            } else {
+                $db->rollBack();
+                respondError('This consumable has no effect');
+            }
+        } else {
+            $db->rollBack();
+            respondError('This item cannot be used');
+        }
+    } catch (Exception $e) {
+        if ($db->inTransaction()) $db->rollBack();
+        error_log('Use item transaction failed: ' . $e->getMessage());
+        respondError('Server error', 500);
+    }
+}
+
+// Helper function to track mount usage
+function handleMountUsage($db, $inventoryId, $maxUsage) {
+    // Check if usage tracking exists for this inventory item
+    $stmt = $db->prepare('SELECT uses_remaining FROM inventory_usage WHERE inventory_id = ?');
+    $stmt->execute([$inventoryId]);
+    $usage = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$usage) {
+        // Initialize usage tracking with INSERT IGNORE to handle race conditions
+        try {
+            $stmt = $db->prepare('INSERT INTO inventory_usage (inventory_id, uses_remaining) VALUES (?, ?)');
+            $stmt->execute([$inventoryId, $maxUsage - 1]);
+        } catch (PDOException $e) {
+            // If duplicate key error, fetch the existing record and decrement
+            if ($e->getCode() == 23000) {
+                $stmt = $db->prepare('UPDATE inventory_usage SET uses_remaining = uses_remaining - 1 WHERE inventory_id = ?');
+                $stmt->execute([$inventoryId]);
+                $stmt = $db->prepare('SELECT uses_remaining FROM inventory_usage WHERE inventory_id = ?');
+                $stmt->execute([$inventoryId]);
+                $usage = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($usage && $usage['uses_remaining'] <= 0) {
+                    // Remove item from inventory (mount expired)
+                    $stmt = $db->prepare('DELETE FROM inventory WHERE inventory_id = ?');
+                    $stmt->execute([$inventoryId]);
+                    
+                    // Also remove from player if currently mounted
+                    $stmt = $db->prepare('UPDATE players SET active_mount_inventory_id = NULL, speed_multiplier = 1.00 WHERE active_mount_inventory_id = ?');
+                    $stmt->execute([$inventoryId]);
+                }
+            } else {
+                throw $e;
+            }
+        }
+    } else {
+        // Decrement usage
+        $newUsage = $usage['uses_remaining'] - 1;
+        if ($newUsage <= 0) {
+            // Remove item from inventory (mount expired)
+            $stmt = $db->prepare('DELETE FROM inventory WHERE inventory_id = ?');
+            $stmt->execute([$inventoryId]);
+            
+            // Also remove from player if currently mounted
+            $stmt = $db->prepare('UPDATE players SET active_mount_inventory_id = NULL, speed_multiplier = 1.00 WHERE active_mount_inventory_id = ?');
+            $stmt->execute([$inventoryId]);
+        } else {
+            $stmt = $db->prepare('UPDATE inventory_usage SET uses_remaining = ? WHERE inventory_id = ?');
+            $stmt->execute([$newUsage, $inventoryId]);
+        }
     }
 }
 

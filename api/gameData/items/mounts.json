@@ -1,0 +1,92 @@
+[
+  {
+    "template_key": "basic_horse",
+    "name": "Basic Horse",
+    "type": "mount",
+    "description": "A reliable horse mount that increases movement speed by 50%",
+    "stats": {
+      "speed_multiplier": 1.5,
+      "max_usage": -1
+    },
+    "rarity": "common",
+    "stackable": 0,
+    "level": 1,
+    "equipment_slot": null,
+    "icon_name": "item-mount-horse.png"
+  },
+  {
+    "template_key": "swift_horse",
+    "name": "Swift Horse",
+    "type": "mount",
+    "description": "A fast horse mount that increases movement speed by 100%",
+    "stats": {
+      "speed_multiplier": 2.0,
+      "max_usage": -1
+    },
+    "rarity": "uncommon",
+    "stackable": 0,
+    "level": 10,
+    "equipment_slot": null,
+    "icon_name": "item-mount-swift-horse.png"
+  },
+  {
+    "template_key": "war_horse",
+    "name": "War Horse",
+    "type": "mount",
+    "description": "A powerful war horse that increases movement speed by 150%",
+    "stats": {
+      "speed_multiplier": 2.5,
+      "max_usage": -1
+    },
+    "rarity": "rare",
+    "stackable": 0,
+    "level": 20,
+    "equipment_slot": null,
+    "icon_name": "item-mount-war-horse.png"
+  },
+  {
+    "template_key": "griffin",
+    "name": "Griffin Mount",
+    "type": "mount",
+    "description": "A mythical griffin that increases movement speed by 200%",
+    "stats": {
+      "speed_multiplier": 3.0,
+      "max_usage": -1
+    },
+    "rarity": "epic",
+    "stackable": 0,
+    "level": 30,
+    "equipment_slot": null,
+    "icon_name": "item-mount-griffin.png"
+  },
+  {
+    "template_key": "dragon",
+    "name": "Dragon Mount",
+    "type": "mount",
+    "description": "A legendary dragon mount that increases movement speed by 300%",
+    "stats": {
+      "speed_multiplier": 4.0,
+      "max_usage": -1
+    },
+    "rarity": "legendary",
+    "stackable": 0,
+    "level": 50,
+    "equipment_slot": null,
+    "icon_name": "item-mount-dragon.png"
+  },
+  {
+    "template_key": "rental_horse",
+    "name": "Rental Horse",
+    "type": "mount",
+    "description": "A rental horse with limited usage that increases movement speed by 50% (50 uses)",
+    "stats": {
+      "speed_multiplier": 1.5,
+      "max_usage": 50
+    },
+    "rarity": "common",
+    "stackable": 0,
+    "level": 1,
+    "equipment_slot": null,
+    "icon_name": "item-mount-rental-horse.png"
+  }
+]
