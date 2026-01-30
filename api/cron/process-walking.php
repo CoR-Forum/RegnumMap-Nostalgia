@@ -78,7 +78,8 @@ function processOnce() {
         }
 
         // Calculate how many steps to advance based on speed multiplier
-        // Base speed: 1 step per tick. With mount, advance by speed_multiplier steps
+        // Speed is rounded to nearest integer: 1.5x becomes 2 steps/tick, 2.5x becomes 3 steps/tick
+        // This provides discrete speed tiers while avoiding fractional position tracking
         $stepsToAdvance = max(1, (int)round($speedMultiplier));
         $nextIndex = $current + $stepsToAdvance;
         
