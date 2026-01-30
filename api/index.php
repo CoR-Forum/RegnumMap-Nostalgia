@@ -974,6 +974,34 @@ function handleStartMove() {
     }
 
     // append intermediate steps from the last path node to the exact target
+    // Ensure the path starts at the player's exact location by
+    // prepending intermediate steps from player -> first path node when needed.
+    $first = $positions[0];
+    $fx = (int)$first[0]; $fy = (int)$first[1];
+    if ($fx !== $px || $fy !== $py) {
+        $dx0 = $fx - $px; $dy0 = $fy - $py;
+        $distToFirst = distance($px, $py, $fx, $fy);
+        $stepSize0 = 40;
+        $prefix = [];
+        if ($distToFirst <= $stepSize0 || $distToFirst == 0) {
+            // just include the exact player position before the first node
+            $prefix[] = [$px, $py];
+        } else {
+            $steps0 = (int)ceil($distToFirst / $stepSize0);
+            // generate intermediate points but avoid duplicating the first node
+            for ($si = 1; $si < $steps0; $si++) {
+                $t = $si / $steps0;
+                $nx = (int)round($px + $dx0 * $t);
+                $ny = (int)round($py + $dy0 * $t);
+                $prefix[] = [$nx, $ny];
+            }
+            // always start with the exact player position
+            array_unshift($prefix, [$px, $py]);
+        }
+        // merge prefix + existing positions
+        $positions = array_merge($prefix, $positions);
+    }
+
     $last = $positions[count($positions)-1];
     $lx = (int)$last[0]; $ly = (int)$last[1];
     $dx = $targetX - $lx; $dy = $targetY - $ly;
