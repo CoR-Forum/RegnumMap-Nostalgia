@@ -1166,8 +1166,20 @@
     let territoryIcons = {};
     
     // Expose gameState on window so other modules can access it
-    const storedToken = localStorage.getItem('sessionToken');
-    
+    // Normalize stored session token: treat literal strings 'null'/'undefined' or empty
+    // values as no token to avoid accidental auto-login attempts.
+    let storedToken = null;
+    try {
+      const raw = localStorage.getItem('sessionToken');
+      if (raw && raw !== 'null' && raw !== 'undefined' && String(raw).trim() !== '') {
+        storedToken = raw;
+      } else {
+        storedToken = null;
+      }
+    } catch (e) {
+      storedToken = null;
+    }
+
     window.gameState = {
       sessionToken: storedToken,
       userId: null,
