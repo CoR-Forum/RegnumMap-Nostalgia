@@ -37,8 +37,13 @@ function processOnce() {
     $db = getDB();
     $now = time();
 
-    // Fetch active walkers (only those actively walking)
-    $stmt = $db->prepare("SELECT walker_id, user_id, positions, current_index FROM walkers WHERE status = 'walking'");
+    // Fetch active walkers (only those actively walking) with player speed multiplier
+    $stmt = $db->prepare("
+        SELECT w.walker_id, w.user_id, w.positions, w.current_index, p.speed_multiplier
+        FROM walkers w
+        JOIN players p ON w.user_id = p.user_id
+        WHERE w.status = 'walking'
+    ");
     $stmt->execute();
     $walkers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -56,6 +61,7 @@ function processOnce() {
         $userId = $w['user_id'];
         $positions = json_decode($w['positions'], true);
         $current = (int)$w['current_index'];
+        $speedMultiplier = isset($w['speed_multiplier']) ? (float)$w['speed_multiplier'] : 1.0;
 
         if (!is_array($positions) || count($positions) === 0) {
             // nothing to do: mark finished so it won't be processed again
@@ -71,7 +77,11 @@ function processOnce() {
             continue;
         }
 
-        $nextIndex = $current + 1;
+        // Calculate how many steps to advance based on speed multiplier
+        // Base speed: 1 step per tick. With mount, advance by speed_multiplier steps
+        $stepsToAdvance = max(1, (int)round($speedMultiplier));
+        $nextIndex = $current + $stepsToAdvance;
+        
         if ($nextIndex >= count($positions)) {
             // finish: move player to final position and retain walker (mark as at final index)
             $finalIndex = count($positions) - 1;
@@ -98,7 +108,7 @@ function processOnce() {
             $updatePlayerStmt->execute([$x, $y, $now, $userId]);
             $updateWalkerStmt->execute([$nextIndex, $now, $walkerId]);
             $db->commit();
-            echo "Walker {$walkerId} advanced to index {$nextIndex} for user {$userId} ({$x},{$y}).\n";
+            echo "Walker {$walkerId} advanced to index {$nextIndex} (speed x{$speedMultiplier}) for user {$userId} ({$x},{$y}).\n";
         } catch (Exception $e) {
             $db->rollBack();
             fwrite(STDERR, "Failed to advance walker {$walkerId}: " . $e->getMessage() . "\n");

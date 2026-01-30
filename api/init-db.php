@@ -53,12 +53,28 @@ try {
             concentration INT NOT NULL DEFAULT 20,
             strength INT NOT NULL DEFAULT 20,
             constitution INT NOT NULL DEFAULT 20,
+            active_mount_inventory_id INT NULL,
+            speed_multiplier DECIMAL(5,2) NOT NULL DEFAULT 1.00,
             last_active INT NOT NULL
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     '); 
     $db->exec('CREATE INDEX IF NOT EXISTS idx_players_last_active ON players(last_active)');
     $db->exec('CREATE INDEX IF NOT EXISTS idx_players_realm ON players(realm)');
     $db->exec('CREATE INDEX IF NOT EXISTS idx_players_xp ON players(xp)');
+
+    // Add mount-related columns to existing players table if they don't exist
+    try {
+        $db->exec('ALTER TABLE players ADD COLUMN active_mount_inventory_id INT NULL');
+        echo "  - Added active_mount_inventory_id column to players table\n";
+    } catch (PDOException $e) {
+        // Column already exists, ignore
+    }
+    try {
+        $db->exec('ALTER TABLE players ADD COLUMN speed_multiplier DECIMAL(5,2) NOT NULL DEFAULT 1.00');
+        echo "  - Added speed_multiplier column to players table\n";
+    } catch (PDOException $e) {
+        // Column already exists, ignore
+    }
 
     // Create territories table (forts and castles)
     $db->exec('
@@ -151,6 +167,15 @@ try {
     $db->exec('CREATE INDEX IF NOT EXISTS idx_inventory_user_id ON inventory(user_id)');
     $db->exec('CREATE INDEX IF NOT EXISTS idx_inventory_item_id ON inventory(item_id)');
     $db->exec('CREATE INDEX IF NOT EXISTS idx_inventory_user_item ON inventory(user_id, item_id)');
+
+    // Create inventory_usage table to track usage of items with limited usage (e.g., rental mounts)
+    $db->exec('
+        CREATE TABLE IF NOT EXISTS inventory_usage (
+            inventory_id INT PRIMARY KEY,
+            uses_remaining INT NOT NULL DEFAULT 0,
+            FOREIGN KEY (inventory_id) REFERENCES inventory(inventory_id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ');
 
     // Create equipment table (player equipment slots)
     $db->exec('
