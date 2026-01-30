@@ -204,6 +204,23 @@ try {
 
     // Seed territories with forts, castles, and walls
 
+    // Create player_settings table to store user preferences
+    $db->exec('
+        CREATE TABLE IF NOT EXISTS player_settings (
+            settings_id INT AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL UNIQUE,
+            music_enabled TINYINT(1) NOT NULL DEFAULT 1,
+            sound_enabled TINYINT(1) NOT NULL DEFAULT 1,
+            music_volume INT NOT NULL DEFAULT 70,
+            sound_volume INT NOT NULL DEFAULT 80,
+            key_bindings TEXT NULL COMMENT "JSON-encoded key binding configuration",
+            created_at INT NOT NULL,
+            updated_at INT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES players(user_id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ');
+    $db->exec('CREATE INDEX IF NOT EXISTS idx_player_settings_user_id ON player_settings(user_id)');
+
     // Create server_time table to track in-game time (1 real hour == 24 in-game hours)
     $db->exec('
         CREATE TABLE IF NOT EXISTS server_time (
@@ -428,6 +445,7 @@ try {
     echo "  - items (item_id, name, type, description, stats, rarity, stackable, equipment_slot)\n";
     echo "  - inventory (inventory_id, user_id, item_id, quantity, acquired_at)\n";
     echo "  - equipment (equipment_id, user_id, head, body, hands, shoulders, legs, weapon_right, weapon_left, ring_right, ring_left, amulet, created_at, updated_at)\n";
+    echo "  - player_settings (settings_id, user_id, music_enabled, sound_enabled, music_volume, sound_volume, key_bindings, created_at, updated_at)\n";
     echo "  - server_time (started_at, last_updated, ingame_hour, ingame_minute, tick_seconds)\n";
     echo "  - walkers (walker_id, user_id, positions, current_index, started_at, updated_at, finished_at)\n";
 } catch (PDOException $e) {

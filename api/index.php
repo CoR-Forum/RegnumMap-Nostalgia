@@ -269,6 +269,10 @@ if ($path === '/login' && $requestMethod === 'POST') {
     handleEquipItem();
 } elseif ($path === '/equipment/unequip' && $requestMethod === 'POST') {
     handleUnequipItem();
+} elseif ($path === '/settings' && $requestMethod === 'GET') {
+    handleGetSettings();
+} elseif ($path === '/settings' && $requestMethod === 'POST') {
+    handleUpdateSettings();
 } elseif ($path === '/paths' && $requestMethod === 'GET') {
     handleGetPaths();
 } elseif ($path === '/paths/get' && $requestMethod === 'GET') {
@@ -1540,6 +1544,133 @@ function handleUnequipItem() {
     } catch (Exception $e) {
         if ($db->inTransaction()) $db->rollBack();
         error_log('Unequip transaction failed: ' . $e->getMessage());
+        respondError('Server error', 500);
+    }
+}
+
+/* ================================================================
+    SETTINGS ENDPOINTS
+    GET  /settings -> get player settings
+    POST /settings -> update player settings
+================================================================ */
+
+function handleGetSettings() {
+    $session = validateSession();
+    $db = getDB();
+    
+    try {
+        $stmt = $db->prepare('SELECT music_enabled, sound_enabled, music_volume, sound_volume, key_bindings FROM player_settings WHERE user_id = ?');
+        $stmt->execute([$session['user_id']]);
+        $settings = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // If no settings exist yet, create default settings
+        if (!$settings) {
+            $now = now();
+            $stmt = $db->prepare('INSERT INTO player_settings (user_id, music_enabled, sound_enabled, music_volume, sound_volume, key_bindings, created_at, updated_at) VALUES (?, 1, 1, 70, 80, NULL, ?, ?)');
+            $stmt->execute([$session['user_id'], $now, $now]);
+            
+            $settings = [
+                'music_enabled' => 1,
+                'sound_enabled' => 1,
+                'music_volume' => 70,
+                'sound_volume' => 80,
+                'key_bindings' => null
+            ];
+        }
+        
+        // Convert key_bindings JSON string to object
+        if ($settings['key_bindings']) {
+            $settings['key_bindings'] = json_decode($settings['key_bindings'], true);
+        }
+        
+        respondSuccess(['settings' => $settings]);
+    } catch (Exception $e) {
+        error_log('Failed to get settings: ' . $e->getMessage());
+        respondError('Server error', 500);
+    }
+}
+
+function handleUpdateSettings() {
+    $session = validateSession();
+    $db = getDB();
+    
+    // Parse input - properly handle boolean values from URLSearchParams
+    $music_enabled = isset($_POST['music_enabled']) ? ($_POST['music_enabled'] === '1' || $_POST['music_enabled'] === 'true' ? 1 : 0) : null;
+    $sound_enabled = isset($_POST['sound_enabled']) ? ($_POST['sound_enabled'] === '1' || $_POST['sound_enabled'] === 'true' ? 1 : 0) : null;
+    $music_volume = isset($_POST['music_volume']) ? (int)$_POST['music_volume'] : null;
+    $sound_volume = isset($_POST['sound_volume']) ? (int)$_POST['sound_volume'] : null;
+    $key_bindings = isset($_POST['key_bindings']) ? $_POST['key_bindings'] : null;
+    
+    // Validate volumes
+    if ($music_volume !== null && ($music_volume < 0 || $music_volume > 100)) {
+        respondError('Music volume must be between 0 and 100');
+    }
+    if ($sound_volume !== null && ($sound_volume < 0 || $sound_volume > 100)) {
+        respondError('Sound volume must be between 0 and 100');
+    }
+    
+    try {
+        // Check if settings exist
+        $stmt = $db->prepare('SELECT settings_id FROM player_settings WHERE user_id = ?');
+        $stmt->execute([$session['user_id']]);
+        $exists = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        $now = now();
+        
+        if (!$exists) {
+            // Insert new settings
+            $stmt = $db->prepare('INSERT INTO player_settings (user_id, music_enabled, sound_enabled, music_volume, sound_volume, key_bindings, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+            $stmt->execute([
+                $session['user_id'],
+                $music_enabled ?? 1,
+                $sound_enabled ?? 1,
+                $music_volume ?? 70,
+                $sound_volume ?? 80,
+                $key_bindings ? json_encode($key_bindings) : null,
+                $now,
+                $now
+            ]);
+        } else {
+            // Update existing settings - only update provided fields
+            $updates = [];
+            $params = [];
+            
+            if ($music_enabled !== null) {
+                $updates[] = 'music_enabled = ?';
+                $params[] = $music_enabled;
+            }
+            if ($sound_enabled !== null) {
+                $updates[] = 'sound_enabled = ?';
+                $params[] = $sound_enabled;
+            }
+            if ($music_volume !== null) {
+                $updates[] = 'music_volume = ?';
+                $params[] = $music_volume;
+            }
+            if ($sound_volume !== null) {
+                $updates[] = 'sound_volume = ?';
+                $params[] = $sound_volume;
+            }
+            if ($key_bindings !== null) {
+                $updates[] = 'key_bindings = ?';
+                $params[] = json_encode($key_bindings);
+            }
+            
+            if (!empty($updates)) {
+                $updates[] = 'updated_at = ?';
+                $params[] = $now;
+                $params[] = $session['user_id'];
+                
+                $sql = 'UPDATE player_settings SET ' . implode(', ', $updates) . ' WHERE user_id = ?';
+                $stmt = $db->prepare($sql);
+                $stmt->execute($params);
+            }
+        }
+        
+        // Return updated settings
+        handleGetSettings();
+    } catch (Exception $e) {
+        error_log('Failed to update settings: ' . $e->getMessage());
         respondError('Server error', 500);
     }
 }
