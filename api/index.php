@@ -1594,9 +1594,9 @@ function handleUpdateSettings() {
     $session = validateSession();
     $db = getDB();
     
-    // Parse input
-    $music_enabled = isset($_POST['music_enabled']) ? (int)(bool)$_POST['music_enabled'] : null;
-    $sound_enabled = isset($_POST['sound_enabled']) ? (int)(bool)$_POST['sound_enabled'] : null;
+    // Parse input - properly handle boolean values from URLSearchParams
+    $music_enabled = isset($_POST['music_enabled']) ? ($_POST['music_enabled'] === '1' || $_POST['music_enabled'] === 'true' ? 1 : 0) : null;
+    $sound_enabled = isset($_POST['sound_enabled']) ? ($_POST['sound_enabled'] === '1' || $_POST['sound_enabled'] === 'true' ? 1 : 0) : null;
     $music_volume = isset($_POST['music_volume']) ? (int)$_POST['music_volume'] : null;
     $sound_volume = isset($_POST['sound_volume']) ? (int)$_POST['sound_volume'] : null;
     $key_bindings = isset($_POST['key_bindings']) ? $_POST['key_bindings'] : null;

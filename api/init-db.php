@@ -213,7 +213,7 @@ try {
             sound_enabled TINYINT(1) NOT NULL DEFAULT 1,
             music_volume INT NOT NULL DEFAULT 70,
             sound_volume INT NOT NULL DEFAULT 80,
-            key_bindings TEXT NULL,
+            key_bindings TEXT NULL COMMENT "JSON-encoded key binding configuration",
             created_at INT NOT NULL,
             updated_at INT NOT NULL,
             FOREIGN KEY (user_id) REFERENCES players(user_id)

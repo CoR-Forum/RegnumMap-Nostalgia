@@ -1479,8 +1479,8 @@
 
     // Settings window functions
     async function openSettings() {
-      const window = document.getElementById('settings-window');
-      window.style.display = 'flex';
+      const settingsWindow = document.getElementById('settings-window');
+      settingsWindow.style.display = 'flex';
       
       try {
         // Load current settings
@@ -1495,8 +1495,8 @@
     }
 
     function closeSettings() {
-      const window = document.getElementById('settings-window');
-      window.style.display = 'none';
+      const settingsWindow = document.getElementById('settings-window');
+      settingsWindow.style.display = 'none';
       if (window.soundManager) {
         window.soundManager.playSound('window_close');
       }
@@ -1532,11 +1532,15 @@
         
         if (data && data.settings) {
           applySettingsToUI(data.settings);
-          alert('Settings saved successfully!');
+          if (window.addLogMessage) {
+            window.addLogMessage('Settings saved successfully!', 'info');
+          }
         }
       } catch (error) {
         console.error('Failed to save settings:', error);
-        alert('Failed to save settings: ' + error.message);
+        if (window.addLogMessage) {
+          window.addLogMessage('Failed to save settings: ' + error.message, 'error');
+        }
       }
     }
 
@@ -2707,7 +2711,9 @@
             const prevX = gameState.position.x;
             const prevY = gameState.position.y;
             const moved = (px !== prevX || py !== prevY);
-            if (moved && posData.walker && window.soundManager) {
+            const distance = Math.sqrt(Math.pow(px - prevX, 2) + Math.pow(py - prevY, 2));
+            // Only play step sound if moved a small distance (actual walking, not teleporting)
+            if (moved && distance < 50 && distance > 0 && posData.walker && window.soundManager) {
               window.soundManager.playWalkSound();
             }
             
@@ -2719,8 +2725,8 @@
                 // Build path rendering moved to public/build-path.js
             updatePlayerCoords(px, py);
             
-            // Update region-based music
-            if (window.soundManager && gameState.regionsData) {
+            // Update region-based music (only if position changed significantly)
+            if (window.soundManager && gameState.regionsData && moved && distance > 0) {
               updateRegionMusic(px, py);
             }
             
@@ -2887,8 +2893,8 @@
         
         // Check if owner changed (for sound notification)
         const existingMarker = gameState.territories.get(territory.territoryId);
-        const ownerChanged = existingMarker && existingMarker._territoryData && 
-                            existingMarker._territoryData.ownerRealm !== territory.ownerRealm;
+        const hasExistingData = existingMarker && existingMarker._territoryData && existingMarker._territoryData.ownerRealm !== undefined;
+        const ownerChanged = hasExistingData && existingMarker._territoryData.ownerRealm !== territory.ownerRealm;
         
         if (ownerChanged && window.soundManager) {
           window.soundManager.playSound('fort_captured');
